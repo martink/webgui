@@ -10,6 +10,7 @@ use Data::Dumper;
 readonly datasets   => my %datasets;
 readonly session    => my %session;
 private  options    => my %options;
+readonly labels     => my %labels;
 
 sub addDataset {
     my $self    = shift;
@@ -55,6 +56,7 @@ sub new {
     $datasets{ $id }    = [];
     $session{ $id }     = $session;
     $options{ $id }     = $properties;
+    $labels{ $id }      = [];
 
     return $self;
 }
@@ -267,6 +269,27 @@ sub set {
 
     my $options = $options{ id $self };
     %{ $options } = ( %{ $options }, %{ $update } );
+}
+
+sub setLabels {
+    my $self    = shift;
+    my @labels  = @_;
+    my @processed;
+
+    foreach my $labelset ( @labels ) {
+        if (ref $labelset eq 'HASH') {
+            push @processed, $labelset;
+        } 
+        elsif ( ref $labelset eq 'ARRAY' ) {
+            my $count = 1;
+            push @processed, { map { $count++ => $_ } @{ $labelset } };
+        }
+        elsif ( $labelset ) {
+            push @processed, { 1 => $labelset }; 
+        }
+    }
+
+    $labels{ id $self } = \@processed;
 }
 
 1;

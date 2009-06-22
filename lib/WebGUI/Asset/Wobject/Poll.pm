@@ -27,7 +27,7 @@ our @ISA = qw(WebGUI::Asset::Wobject);
 
 #-------------------------------------------------------------------
 sub _hasVoted {
-#return 0;
+return 0;
 	my $self = shift;
 	my ($hasVoted) = $self->session->db->quickArray("select count(*) from Poll_answer 
 		where assetId=".$self->session->db->quote($self->getId)." and ((userId=".$self->session->db->quote($self->session->user->userId)."
@@ -271,7 +271,7 @@ sub getEditForm {
 		) if $self->session->form->process("func") ne 'add';
 
 
-	if (WebGUI::Image::Graph->getPluginList($self->session)) {
+#	if (WebGUI::Image::Graph->getPluginList($self->session)) {
 		my $config = $self->getGraphConfig || {};
 
 		$tabform->addTab('graph', 'Graphing');
@@ -285,7 +285,7 @@ sub getEditForm {
 		$tabform->getTab('graph')->raw(
             WebGUI::Chart->getChartingTab( $self->session, $config )
         );
-	}
+#	}
 
 	return $tabform;
 }
@@ -351,10 +351,10 @@ sub processPropertiesFromFormPost {
         $property->{'a'.$i} = $answer[($i-1)] || "";
     }
 
-	if (WebGUI::Image::Graph->getPluginList($self->session)) {
+#	if (WebGUI::Image::Graph->getPluginList($self->session)) {
 		my $chart = WebGUI::Chart->processEditForm( $self->session );
 		$self->setGraphConfig( $chart->getConfiguration );
-	}
+#	}
 
 	$self->update($property);
 	$self->session->db->write("delete from Poll_answer where assetId=".$self->session->db->quote($self->getId)) if ($self->session->form->process("resetVotes"));
@@ -464,7 +464,7 @@ sub view {
         if ($config) {
             my $chart = WebGUI::Chart->newByConfiguration( $self->session, $config );
             $chart->addDataset( \@dataset );
-            #$chart->setLabels( \@labels );
+            $chart->setLabels( \@labels );
             $chart->axis->set( { xTickCount => scalar @dataset } );
             
             $var{chart_html} = $chart->toHtml;

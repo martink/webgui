@@ -21,8 +21,6 @@ sub _applyConfiguration {
     my $self    = shift;
     my $session = $self->session;
 
-$session->log->warn( $self->axisProperties );
-
     foreach my $definition ( @{ $self->definition( $session ) } ) {
         foreach my $key ( keys %{ $definition->{ properties } } ) {
             if ($definition->{ properties }->{ $key }->{ category } eq 'axis') {
@@ -43,7 +41,11 @@ $session->log->warn( $self->axisProperties );
             } 
         }
     }
-    
+   
+    my $axis = 0;
+    foreach my $labelset ( @{ $self->labels } ) {
+        $self->axis->addLabels( $labelset, $axis++ );
+    }
 
 #    foreach my $definition ( @{ $self->definition( $session ) } ) {
 #        foreach my $key ( keys %{ $definition->{ axisProperties } } ) {
@@ -154,8 +156,6 @@ sub draw {
     foreach my $data (@{ $self->datasets }) {
         $self->chart->dataset->addDataset( $data->[0], $data->[1] );
     }
-
-    $self->session->log->warn("-------->". Dumper( $self->axis->get ) );
 
     $self->axis->addChart( $self->chart );
     $self->axis->draw;
