@@ -2,7 +2,7 @@ package WebGUI::Asset::Wobject::Poll;
 
 
 #-------------------------------------------------------------------
-# WebGUI is Copyright 2001-2009 Plain Black Corporation.
+# WebGUI is Copyright 2001-2008 Plain Black Corporation.
 #-------------------------------------------------------------------
 # Please read the legal notices (docs/legal.txt) and the license
 # (docs/license.txt) that came with this distribution before using
@@ -27,6 +27,7 @@ our @ISA = qw(WebGUI::Asset::Wobject);
 
 #-------------------------------------------------------------------
 sub _hasVoted {
+#return 0;
 	my $self = shift;
 	my ($hasVoted) = $self->session->db->quickArray("select count(*) from Poll_answer 
 		where assetId=".$self->session->db->quote($self->getId)." and ((userId=".$self->session->db->quote($self->session->user->userId)."
@@ -192,7 +193,7 @@ sub freezeGraphConfig {
     my $self        = shift;
     my $obj         = shift;
     
-    return JSON::to_json($obj);
+    return JSON::encode_json($obj);
 }
 
 
@@ -271,7 +272,7 @@ sub getEditForm {
 
 
 	if (WebGUI::Image::Graph->getPluginList($self->session)) {
-		my $config = $self->getGraphConfig;
+		my $config = $self->getGraphConfig || {};
 
 		$tabform->addTab('graph', 'Graphing');
 		$tabform->getTab('graph')->yesNo(
@@ -280,7 +281,10 @@ sub getEditForm {
 			-hoverHelp	=> $i18n->get('generate graph description'),
 			-value		=> $self->getValue('generateGraph'),
 		);
-		$tabform->getTab('graph')->raw(WebGUI::Image::Graph->getGraphingTab($self->session, $config));
+
+		$tabform->getTab('graph')->raw(
+            WebGUI::Chart->getChartingTab( $self->session, $config )
+        );
 	}
 
 	return $tabform;
@@ -327,18 +331,11 @@ See WebGUI::Asset::prepareView() for details.
 =cut
 
 sub prepareView {
-    my $self = shift;
-    $self->SUPER::prepareView();
-    my $template = WebGUI::Asset::Template->new($self->session, $self->get("templateId"));
-    if (!$template) {
-        WebGUI::Error::ObjectNotFound::Template->throw(
-            error      => qq{Template not found},
-            templateId => $self->get("templateId"),
-            assetId    => $self->getId,
-        );
-    }
-    $template->prepare($self->getMetaDataAsTemplateVariables);
-    $self->{_viewTemplate} = $template;
+	my $self = shift;
+	$self->SUPER::prepareView();
+	my $template = WebGUI::Asset::Template->new($self->session, $self->get("templateId"));
+	$template->prepare($self->getMetaDataAsTemplateVariables);
+	$self->{_viewTemplate} = $template;
 }
 
 
@@ -355,8 +352,8 @@ sub processPropertiesFromFormPost {
     }
 
 	if (WebGUI::Image::Graph->getPluginList($self->session)) {
-		my $graph = WebGUI::Image::Graph->processConfigurationForm($self->session);
-		$self->setGraphConfig( $graph->getConfiguration );
+		my $chart = WebGUI::Chart->processEditForm( $self->session );
+		$self->setGraphConfig( $chart->getConfiguration );
 	}
 
 	$self->update($property);
@@ -389,32 +386,13 @@ sub setGraphConfig {
 }
 
 #-------------------------------------------------------------------
-
-=head2 setVote ($answer, $userId, $ip)
-
-Accumulates a vote into the database so that it can be counted.
-
-=head3 $answer
-
-The answer selected by the user.
-
-=head3 $userid
-
-The userId of the person who voted.
-
-=head3 $ip
-
-The IP address of the user who voted.
-
-=cut
-
 sub setVote {
-    my $self = shift;
-    my $answer = shift;
-    my $userId = shift;
-    my $ip = shift;
-    $self->session->db->write("insert into Poll_answer (assetId, answer, userId, ipAddress) values (?,?,?,?)",
-        [$self->getId, $answer, $userId, $ip] );
+	my $self = shift;
+	my $answer = shift;
+	my $userId = shift;
+	my $ip = shift;
+       	$self->session->db->write("insert into Poll_answer (assetId, answer, userId, ipAddress) values (".$self->session->db->quote($self->getId).", 
+		".$self->session->db->quote($answer).", ".$self->session->db->quote($userId).", '$ip')");
 }
 
 #----------------------------------------------------------------------------
@@ -430,14 +408,15 @@ sub thawGraphConfig {
     my $string      = shift;
     
     return unless $string;
-    return JSON::from_json($string);
+    return JSON::decode_json($string);
 }
 
 #-------------------------------------------------------------------
 sub view {
 	my $self = shift;
 	my (%var, $answer, @answers, $showPoll, $f, @dataset, @labels);
-        $var{question} = $self->get("question");
+    $var{question} = $self->get("question");
+
 	if ($self->get("active") eq "0") {
 		$showPoll = 0;
 	} elsif ($self->session->user->isInGroup($self->get("voteGroup"))) {
@@ -450,8 +429,10 @@ sub view {
 		$showPoll = 0;
 	}
 	$var{canVote} = $showPoll;
-        my ($totalResponses) = $self->session->db->quickArray("select count(*) from Poll_answer where assetId=".$self->session->db->quote($self->getId));
+
+    my ($totalResponses) = $self->session->db->quickArray("select count(*) from Poll_answer where assetId=".$self->session->db->quote($self->getId));
 	my $i18n = WebGUI::International->new($self->session,"Asset_Poll");
+
 	$var{"responses.label"} = $i18n->get(12);
 	$var{"responses.total"} = $totalResponses;
 	$var{"form.start"} = WebGUI::Form::formHeader($self->session,{action=>$self->getUrl});
@@ -481,17 +462,12 @@ sub view {
 	if ($self->getValue('generateGraph')) {
 		my $config = $self->getGraphConfig;
         if ($config) {
-            my $graph = WebGUI::Image::Graph->loadByConfiguration($self->session, $config);
-            $graph->addDataset(\@dataset);
-            $graph->setLabels(\@labels);
-
-            $graph->draw;
-
-            my $storage = WebGUI::Storage->createTemp($self->session);
-            my $filename = 'poll'.$self->session->id->generate.".png";
-            $graph->saveToStorageLocation($storage, $filename);
-
-            $var{graphUrl} = $storage->getUrl($filename);
+            my $chart = WebGUI::Chart->newByConfiguration( $self->session, $config );
+            $chart->addDataset( \@dataset );
+            #$chart->setLabels( \@labels );
+            $chart->axis->set( { xTickCount => scalar @dataset } );
+            
+            $var{chart_html} = $chart->toHtml;
             $var{hasImageGraph} = 1;
         } else {
             $self->session->errorHandler->error('The graph configuration hash of the Poll ('.$self->getUrl.') is corrupt.');
