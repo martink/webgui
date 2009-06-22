@@ -57,5 +57,10 @@ sub _applyConfiguration {
     
 }
 
+sub getAxisClass {
+    my $self = shift;
+    return $self->get('axisType');
+}
+
 1;
 

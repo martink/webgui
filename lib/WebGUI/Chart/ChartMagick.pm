@@ -222,7 +222,7 @@ sub new {
     }
 
     # Instanciate axis object
-    my $axisClass = 'Chart::Magick::Axis::Lin'; #$self->get('axisType');
+    my $axisClass = $self->getAxisClass; #'Chart::Magick::Axis::Lin'; #$self->get('axisType');
     $axis{ id $self } = eval { WebGUI::Pluggable::instanciate( $axisClass, 'new', [] ) };
     if ($@) {
         $self->session->log->error("Could not instantiate charting plugin: $@");
@@ -230,6 +230,13 @@ sub new {
     }
 
     return $self;
+}
+
+sub getAxisClass {
+    my $self = shift;
+
+    return $self->definition( $self->session )->[ 0 ]->{ 'axisClass' };
+
 }
 
 sub processPropertiesFromFormPost {
