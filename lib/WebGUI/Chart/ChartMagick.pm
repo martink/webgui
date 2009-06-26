@@ -13,58 +13,56 @@ use base qw{ WebGUI::Chart };
 
 readonly axis               => my %axis;
 readonly chart              => my %chart;
-readonly axisProperties     => my %axisProperties;
-readonly chartProperties    => my %chartProperties;
+#readonly axisProperties     => my %axisProperties;
+#readonly chartProperties    => my %chartProperties;
 
 #---------------------------------------------------------------------
 sub _applyConfiguration {
     my $self    = shift;
     my $session = $self->session;
 
+#    foreach my $definition ( @{ $self->definition( $session ) } ) {
+#        foreach my $key ( keys %{ $definition->{ properties } } ) {
+#            if ($definition->{ properties }->{ $key }->{ category } eq 'axis') {
+#                my $value = exists $self->axisProperties->{ $key }
+#                    ? $self->axisProperties->{ $key }
+#                    : $definition->{ properties }->{ $key }->{ defaultValue }
+#                    ;
+#
+#                $self->axis->set( { $key => $value } );
+#            }
+#            if ($definition->{ properties }->{ $key }->{ category } eq 'chart') {
+#                my $value = exists $self->chartProperties->{ $key }
+#                    ? $self->chartProperties->{ $key }
+#                    : $definition->{ properties }->{ $key }->{ defaultValue }
+#                    ;
+#
+#                $self->chart->set( { $key => $value } );
+#            } 
+#        }
+#    }
+
     foreach my $definition ( @{ $self->definition( $session ) } ) {
         foreach my $key ( keys %{ $definition->{ properties } } ) {
+            my $value = defined $self->get( $key )
+                      ? $self->get( $key )
+                      : $definition->{ properties }->{ $key }->{ defaultValue }
+                      ;
+
             if ($definition->{ properties }->{ $key }->{ category } eq 'axis') {
-                my $value = exists $self->axisProperties->{ $key }
-                    ? $self->axisProperties->{ $key }
-                    : $definition->{ properties }->{ $key }->{ defaultValue }
-                    ;
-
-                $self->axis->set( { $key => $value } );
+                $self->axis->set( $key => $value );
             }
-            if ($definition->{ properties }->{ $key }->{ category } eq 'chart') {
-                my $value = exists $self->chartProperties->{ $key }
-                    ? $self->chartProperties->{ $key }
-                    : $definition->{ properties }->{ $key }->{ defaultValue }
-                    ;
-
-                $self->chart->set( { $key => $value } );
-            } 
+            else {
+                $self->chart->set( $key => $value );
+            }
         }
     }
-   
+
+
     my $axis = 0;
     foreach my $labelset ( @{ $self->labels } ) {
         $self->axis->addLabels( $labelset, $axis++ );
     }
-
-#    foreach my $definition ( @{ $self->definition( $session ) } ) {
-#        foreach my $key ( keys %{ $definition->{ axisProperties } } ) {
-#            my $value = exists $self->axisProperties->{ $key }
-#                ? $self->axisProperties->{ $key }
-#                : $definition->{ axisProperties }->{ $key }->{ defaultValue }
-#                ;
-#
-#            $self->axis->set( { $key => $value } );
-#        }
-#        foreach my $key ( keys %{ $definition->{ chartProperties } } ) {
-#            my $value = exists $self->chartProperties->{ $key }
-#                ? $self->chartProperties->{ $key }
-#                : $definition->{ chartProperties }->{ $key }->{ defaultValue }
-#                ;
-#
-#            $self->chart->set( { $key => $value } );
-#        } 
-#    }
 
     my $font = WebGUI::Image::Font->new( $session, $self->get('font') );
     my $fontFile = $font->getFile;
@@ -73,8 +71,6 @@ sub _applyConfiguration {
         labelFont   => $fontFile,
     });
 
-    # Set palette;
-#    $self->chart->
 }
 
 #---------------------------------------------------------------------
@@ -91,9 +87,6 @@ sub definition {
             label           => 'Font',
             options         => $fonts,
         },
- #   );
-
-#    tie my %axisProperties, 'Tie::IxHash', (
         width => {
             fieldType       => 'integer',
             label           => 'Width (px)',
@@ -118,8 +111,9 @@ sub definition {
             category        => 'axis',
         },
         titleFont => {
-            fieldType       => 'text',
+            fieldType       => 'selectBox',
             label           => 'Title font',
+            options         => $fonts,
             category        => 'axis',
         },
        titleFontSize =>     {
@@ -138,7 +132,6 @@ sub definition {
     my %def = (
         name            => 'ChartMagick',
         properties      => \%properties,
-        axisProperties  => \%axisProperties,
         className       => 'WebGUI::Chart::ChartMagick',
     );
     push @{ $definition }, \%def;
@@ -161,46 +154,46 @@ sub draw {
     $self->axis->draw;
 }
 
-#---------------------------------------------------------------------
-sub getConfiguration {
-    my $self = shift;
+##---------------------------------------------------------------------
+#sub getConfiguration {
+#    my $self = shift;
+#
+#    my $config = $self->SUPER::getConfiguration( @_ );
+#
+#    $config->{ axisProperties   } = $self->axisProperties;
+#    $config->{ chartProperties  } = $self->chartProperties;
+#
+#    return $config;
+#}
 
-    my $config = $self->SUPER::getConfiguration( @_ );
-
-    $config->{ axisProperties   } = $self->axisProperties;
-    $config->{ chartProperties  } = $self->chartProperties;
-
-    return $config;
-}
-
-#---------------------------------------------------------------------
-sub getEditForm {
-    my $self    = shift;
-    my $session = $self->session;
-    
-    my $axis    = $self->axis;
-    my $chart   = $self->chart;
-
-    my $f = $self->SUPER::getEditForm( @_ );
-    foreach my $definition ( @{ $self->definition( $session ) } ) {
-        foreach my $key ( keys %{ $definition->{ axisProperties } } ) {
-            my $params = $definition->{ axisProperties }->{ $key };
-            $params->{ name     } = $key;
-            $params->{ value    } = $self->axisProperties->{ $key };
-            $f->dynamicField( %{ $params } );
-        }
-    }
-    foreach my $definition ( @{ $self->definition( $session ) } ) {
-        foreach my $key ( keys %{ $definition->{ chartProperties } } ) {
-            my $params = $definition->{ chartProperties }->{ $key };
-            $params->{ name     } = $key;
-            $params->{ value    } = $self->chartProperties->{ $key };
-            $f->dynamicField( %{ $params } );
-        }
-    }
-
-    return $f;
-}
+##---------------------------------------------------------------------
+#sub getEditForm {
+#    my $self    = shift;
+#    my $session = $self->session;
+#    
+#    my $axis    = $self->axis;
+#    my $chart   = $self->chart;
+#
+#    my $f = $self->SUPER::getEditForm( @_ );
+#    foreach my $definition ( @{ $self->definition( $session ) } ) {
+#        foreach my $key ( keys %{ $definition->{ axisProperties } } ) {
+#            my $params = $definition->{ axisProperties }->{ $key };
+#            $params->{ name     } = $key;
+#            $params->{ value    } = $self->axisProperties->{ $key };
+#            $f->dynamicField( %{ $params } );
+#        }
+#    }
+#    foreach my $definition ( @{ $self->definition( $session ) } ) {
+#        foreach my $key ( keys %{ $definition->{ chartProperties } } ) {
+#            my $params = $definition->{ chartProperties }->{ $key };
+#            $params->{ name     } = $key;
+#            $params->{ value    } = $self->chartProperties->{ $key };
+#            $f->dynamicField( %{ $params } );
+#        }
+#    }
+#
+#    return $f;
+#}
 
 #---------------------------------------------------------------------
 sub new {
@@ -210,8 +203,8 @@ sub new {
     my $self            = $class->SUPER::new( $session, $configuration );
 
     # Apply configuration
-    $chartProperties{ id $self } = $configuration->{ chartProperties } || { };
-    $axisProperties{ id $self  } = $configuration->{ axisProperties  } || { };
+#    $chartProperties{ id $self } = $configuration->{ chartProperties } || { };
+#    $axisProperties{ id $self  } = $configuration->{ axisProperties  } || { };
 
     # Instanciate chart object
     my $chartClass = $class->definition( $session )->[0]->{ chartClass };
@@ -239,34 +232,36 @@ sub getAxisClass {
 
 }
 
-sub processPropertiesFromFormPost {
-    my $self    = shift;
-    my $session = $self->session;
-
-    $self->SUPER::processPropertiesFromFormPost( @_ );
-    my $id      = id $self;
-
-    foreach my $definition ( @{ $self->definition( $session ) } ) {
-        # Process axis properties.
-        foreach my $key ( keys %{ $definition->{ axisProperties } } ) {
-            $axisProperties{ $id }->{ $key } = $session->form->process( 
-                $key,
-                $definition->{ axisProperties }->{ $key }->{ fieldType },
-                $definition->{ axisProperties }->{ $key }->{ defaultValue },
-            );
-        }
-
-        # Process chart properties.
-        foreach my $key ( keys %{ $definition->{ chartProperties } } ) {
-            $chartProperties{ $id }->{ $key } = $session->form->process( 
-                $key,
-                $definition->{ chartProperties }->{ $key }->{ fieldType },
-                $definition->{ chartProperties }->{ $key }->{ defaultValue },
-            );
-        }
-    }
-    
-}
+#sub processPropertiesFromFormPost {
+#    my $self    = shift;
+#    my $session = $self->session;
+#
+#    $self->SUPER::processPropertiesFromFormPost( @_ );
+#    my $id      = id $self;
+#
+#    foreach my $definition ( @{ $self->definition( $session ) } ) {
+#        # Process axis properties.
+#        foreach my $key ( keys %{ $definition->{ axisProperties } } ) {
+#            $axisProperties{ $id }->{ $key } = $session->form->process( 
+#                "__graphtab_$key",
+#                $definition->{ axisProperties }->{ $key }->{ fieldType },
+#                $definition->{ axisProperties }->{ $key }->{ defaultValue },
+#            );
+#        }
+#
+#        # Process chart properties.
+#        foreach my $key ( keys %{ $definition->{ chartProperties } } ) {
+#            $chartProperties{ $id }->{ $key } = $session->form->process( 
+#                "__graphtab_$key",
+#                $definition->{ chartProperties }->{ $key }->{ fieldType },
+#                $definition->{ chartProperties }->{ $key }->{ defaultValue },
+#            );
+#        }
+#    }
+#
+#    $session->log->warn( Dumper $axisProperties{ $id } );
+#
+#}
 
 #---------------------------------------------------------------------
 sub toHtml {

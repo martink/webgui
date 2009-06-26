@@ -146,6 +146,7 @@ sub getChartingTab {
     my $classProcessed;
     my $isaTrail = {};
 
+
     foreach my $namespace (@$plugins) {
         my $chart       = eval { WebGUI::Pluggable::instanciate( $namespace, 'new', [ $session, $configuration ] ) }; 
         $session->log->warn("Could not instanciate plugin $namespace: $@") if ($@);
@@ -162,29 +163,24 @@ sub getChartingTab {
             foreach my $field ( keys %{ $part->{ properties } } ) {
                 my $params = $part->{ properties }->{ $field };
                 $params->{ value  } = $chart->get( $field );
-                $params->{ name   } = $field;
+                $params->{ name   } = "__graphtab_$field";
                 $params->{ extras } .= " class=\"$className\"";
                 $pluginForms->dynamicField( %{ $params } );
             }
 
             $classProcessed->{ $className } = 1;
         }
-
-#        $pluginForms->raw( qq{<table id="graph-$namespace"><tbody>} );
-#        $pluginForms->raw( $chart->getEditForm->printRowsOnly );
-#        $pluginForms->raw( qq{</tbody></table>} );
     }
-#    $pluginForms->raw( qq{<table><tbody} );
-
-#   $session->style->setRawHeadTags( $class->chartingTabJS );
     $session->style->setScript( $session->url->extras('chartingTabSwitcher.js'), { type=>'text/javascript' } );
     my $constituentsJSON = to_json( $isaTrail );
-
+$session->log->warn( $configuration->{ className } );
+$session->log->warn( Dumper $options );
     my $f = WebGUI::HTMLForm->new( $session );
     $f->selectBox(
         name    => "graph_className",
         label   => "Graph type",
         options => $options,
+        value  =>  $configuration->{ className },
         id      => 'graph_classNameSelector',
     );
     $f->raw( $pluginForms->printRowsOnly );
@@ -252,7 +248,7 @@ sub processPropertiesFromFormPost {
         foreach my $property ( keys %{ $definition->{ properties } } ) {
             $self->set({
                 $property => $session->form->process(
-                    $property,
+                    "__graphtab_$property",
                     $definition->{ properties }->{ $property }->{ fieldType     },
                     $definition->{ properties }->{ $property }->{ defaultValue  },
                 )
