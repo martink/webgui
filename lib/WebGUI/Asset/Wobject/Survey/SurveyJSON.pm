@@ -50,7 +50,6 @@ use strict;
 use JSON;
 use Params::Validate qw(:all);
 Params::Validate::validation_options( on_fail => sub { WebGUI::Error::InvalidParam->throw( error => shift ) } );
-
 use Clone qw/clone/;
 use WebGUI::Asset::Wobject::Survey::ExpressionEngine;
 
@@ -67,8 +66,10 @@ WebGUI::Session object
 
 =head3 $json (optional)
 
-A JSON string used to construct a new Perl object. The string should represent 
-a JSON hash made up of "survey" and "sections" keys.
+A json-encoded serialized surveyJSON object. Typically this will have just been retrieved from the 
+database, have been previously generated from another surveyJSON object using L<freeze>.
+
+See L<freeze> for more information on what the serialized object should look like.
 
 =cut
 
@@ -78,15 +79,27 @@ sub new {
 
     # Load json object if given..
     my $jsonData = $json ? from_json($json) : {};
-
-    # Create skeleton object..
+    
+    # When the a new empty surveyJSON object is created (as opposed to being re-initialised from existing json), 
+    # we create a snapshot of the *current* default values for new Sections, Questions and Answers. 
+    # This snapshot (the mold) is used by L<compress> and L<uncompress> to reduce redundancy in the json-encoded 
+    # surveyJSON object that gets serialized to the database. This compression is mostly transparent since it
+    # happens only at serialisation/instantiation time.
+    my $sections = $jsonData->{sections} || [];
     my $self = {
         _session  => $session,
-        _sections => $jsonData->{sections} || [],
-        _survey   => $jsonData->{survey} || {},
+        _mold    => $jsonData->{mold}
+            || {
+            answer   => $class->newAnswer,
+            question => $class->newQuestion,
+            section  => $class->newSection,
+            },
     };
 
     bless $self, $class;
+
+    # Uncompress the survey configuration and store it in the new object
+    $self->{_sections} = $self->uncompress($sections);
 
     #Load question types
     $self->loadTypes();
@@ -177,17 +190,18 @@ sub multipleChoiceTypes {
 =head2 freeze
 
 Serialize this Perl object into a JSON string. The serialized object is made up of the survey and sections 
-components of this object.
+components of this object, as well as the "mold" which is used .
 
 =cut
 
 sub freeze {
     my $self = shift;
     return to_json(
-        {   sections => $self->sections,
-            survey   => $self->{_survey},
+        {   sections => $self->compress(),
+            mold    => $self->{_mold},
         }
     );
+    
 }
 
 =head2 newObject ( $address )
@@ -230,21 +244,21 @@ sub newObject {
 
     if ( $count == 0 ) {
         # Add a new section to the end of the list of sections..
-        push @{ $self->sections }, $self->newSection();
+        push @{ $self->{_sections} }, $self->newSection();
 
         # Update $address with the index of the newly created section
         $address->[0] = $self->lastSectionIndex;
     }
     elsif ( $count == 1 ) {
         # Add a new question to the end of the list of questions in section located at $address
-        push @{ $self->questions($address) }, $self->newQuestion($address);
+        push @{ $self->section($address)->{questions} }, $self->newQuestion($address);
 
         # Update $address with the index of the newly created question
         $address->[1] = $self->lastQuestionIndex($address);
     }
     elsif ( $count == 2 ) {
         # Add a new answer to the end of the list of answers in section/question located at $address
-        push @{ $self->answers($address) }, $self->newAnswer($address);
+        push @{ $self->question($address)->{answers} }, $self->newAnswer($address);
 
         # Update $address with the index of the newly created answer
         $address->[2] = $self->lastAnswerIndex($address);
@@ -587,6 +601,102 @@ sub getAnswerEditVars {
     return \%var;
 }
 
+=head2 compress
+
+Returns a copy of L<sections> with all redundancy (relative to L<mold>) removed.
+That is, any section/question/answer property that matches the mold is removed from
+the array object that is returned.
+
+This is handy for shinking down the L<sections> hash as much as possible prior
+to json-encoding and storing in the db (see L<freeze>).
+
+=cut
+
+sub compress {
+    my $self = shift;
+    
+    # Get the Section, Question and Answer molds that will be used to remove redundancy
+    my ($smold, $qmold, $amold) = @{$self->mold}{'section', 'question', 'answer'};
+    
+    # Iterate over all objects, only adding them to our new object if they differ from the mold
+    # Properties are assumed to be simple scalars only (strings and numbers). The only except to
+    # this is the 'questions' arrayref in sections and the 'answers' arrayref in questions.
+    my @sections;
+    for my $s (@{$self->sections}) {
+        my $newS = {};
+        for my $q (@{$s->{questions} || []}) {
+            my $newQ = {};
+            for my $a (@{$q->{answers} || []}) {
+                my $newA = {};
+                while (my($key, $value) = each %$a) {
+                    next if ref $value;
+                    $newA->{$key} = $value unless WebGUI::Utility::scalarEquals($value, $amold->{$key});
+                }
+                push @{$newQ->{answers}}, $newA;
+            }
+            while (my($key, $value) = each %$q) {
+                next if ref $value;
+                $newQ->{$key} = $value unless WebGUI::Utility::scalarEquals($value, $qmold->{$key});
+            }
+            push @{$newS->{questions}}, $newQ;
+        }
+        while (my($key, $value) = each %$s) {
+            next if ref $value;
+            $newS->{$key} = $value unless WebGUI::Utility::scalarEquals($value, $smold->{$key});
+        }
+        push @sections, $newS;
+    }
+    return \@sections;
+}
+
+=head2 uncompress ($sections)
+
+Modifies the supplied arrayref of sections, adding back in all redundancy that has been 
+removed by a previous call to L<compress>. Typically this is done immediately after
+retrieving serialised surveyJSON from the db (see L<db>).
+
+Any L<mold> property missing from the supplied list of section/question/answers is added,
+and then the modified arrayref is returned.
+
+=head3 sections
+
+An arrayref of sections that you want to uncompress. Typically retrieved from the database.
+
+=cut
+
+sub uncompress {
+    my $self    = shift;
+    my $sections = shift;
+    
+    return if !$sections;
+    
+    # Get the Section, Question and Answer molds
+    my ($smold, $qmold, $amold) = @{$self->mold}{'section', 'question', 'answer'};
+    
+    # Iterate over all objects, adding back in the missing properties
+    for my $s (@$sections) {
+        for my $q (@{$s->{questions} || []}) {
+            for my $a (@{$q->{answers} || []}) {
+                while (my($key, $value) = each %$amold) {
+                    next if ref $value;
+                    $a->{$key} = $value unless exists $a->{$key};
+                }
+            }
+            while (my($key, $value) = each %$qmold) {
+                next if ref $value;
+                $q->{$key} = $value unless exists $q->{$key};
+            }
+        }
+        while (my($key, $value) = each %$smold) {
+            next if ref $value;
+            $s->{$key} = $value unless exists $s->{$key};
+        }
+    }
+    
+    # Return the modified arrayref
+    return $sections;
+}
+
 =head2 update ( $address, $properties )
 
 Update a section/question/answer with $properties, or add new ones.  
@@ -644,7 +754,7 @@ sub update {
         $object = $self->section($address);
         if ( !defined $object ) {
             $object = $self->newSection();
-            push @{ $self->sections }, $object;
+            push @{ $self->{_sections} }, $object;
         }
     }
     elsif ( $count == 2 ) {
@@ -652,7 +762,7 @@ sub update {
         if ( !defined $object ) {
             $object = $self->newQuestion();
             $newQuestion = 1; # make note that a new question was created
-            push @{ $self->questions($address) }, $object;
+            push @{ $self->section($address)->{questions} }, $object;
         }
         # If questionType supplied, see if we need to update all of the answers to reflect the new questionType
         if ( $properties->{questionType} && $properties->{questionType} ne $object->{questionType} ) {
@@ -663,17 +773,26 @@ sub update {
         $object = $self->answer($address);
         if ( !defined $object ) {
             $object = $self->newAnswer();
-            push @{ $self->answers($address) }, $object;
+            push @{ $self->question($address)->{answers} }, $object;
         }
     }
 
     $self->_handleSpecialAnswerUpdates($address,$properties); 
 
+    my $validSectionProps = $self->newSection;
+    my $validQuestionProps = $self->newQuestion;
+    my $validAnswerProps = $self->newAnswer;
+    
     # Update $object with all of the data in $properties
     while (my ($key, $value) = each %{$properties}) {
         if (defined $value) {
             $object->{$key} = $value;
         }
+        
+        # Only allow properties that we know about
+        delete $object->{$key} if $count == 1 and !exists $validSectionProps->{$key};
+        delete $object->{$key} if $count == 2 and !exists $validQuestionProps->{$key};
+        delete $object->{$key} if $count == 3 and !exists $validAnswerProps->{$key};
     }
 
     return;
@@ -742,15 +861,15 @@ sub insertObject {
 
     # Use splice to rearrange the relevant array of objects..
     if ( $count == 1 ) {
-        splice @{ $self->sections($address) }, sIndex($address) +1, 0, $object;
+        splice @{ $self->{_sections} }, sIndex($address) +1, 0, $object;
         $address->[0]++;
     }
     elsif ( $count == 2 ) {
-        splice @{ $self->questions($address) }, qIndex($address) + 1, 0, $object;
+        splice @{ $self->section($address)->{questions} }, qIndex($address) + 1, 0, $object;
         $address->[1]++;
     }
     elsif ( $count == 3 ) {
-        splice @{ $self->answers($address) }, aIndex($address) + 1, 0, $object;
+        splice @{ $self->question($address)->{answers} }, aIndex($address) + 1, 0, $object;
         $address->[2]++;
     }
 
@@ -796,21 +915,21 @@ sub copy {
 
     if ( $count == 1 ) {
         # Clone the indexed section onto the end of the list of sections..
-        push @{ $self->sections }, clone $self->section($address);
+        push @{ $self->{_sections} }, clone $self->section($address);
 
         # Update $address with the index of the newly created section
         $address->[0] = $self->lastSectionIndex;
     }
     elsif ( $count == 2 ) {
         # Clone the indexed question onto the end of the list of questions..
-        push @{ $self->questions($address) }, clone $self->question($address);
+        push @{ $self->section($address)->{questions} }, clone $self->question($address);
 
         # Update $address with the index of the newly created question
         $address->[1] = $self->lastQuestionIndex($address);
     }
     elsif ( $count == 3 ) {
         # Clone the indexed answer onto the end of the list of answers..
-        push @{ $self->answers($address) }, clone $self->answer($address);
+        push @{ $self->question($address)->{answers} }, clone $self->answer($address);
 
         # Update $address with the index of the newly created answer
         $address->[2]++;
@@ -862,14 +981,14 @@ sub remove {
     if ( $count == 1 ) {
         # Make sure the first section isn't removed unless we REALLY want to
         if ( sIndex($address) != 0 || defined $movingOverride ) {
-            splice @{ $self->sections }, sIndex($address), 1;
+            splice @{ $self->{_sections} }, sIndex($address), 1;
         }
     }
     elsif ( $count == 2 ) {
-        splice @{ $self->questions($address) }, qIndex($address), 1;
+        splice @{ $self->section($address)->{questions} }, qIndex($address), 1;
     }
     elsif ( $count == 3 ) {
-        splice @{ $self->answers($address) }, aIndex($address), 1;
+        splice @{ $self->question($address)->{answers} }, aIndex($address), 1;
     }
 
     return;
@@ -1083,7 +1202,19 @@ Returns a reference to all the sections in this object.
 
 sub sections {
     my $self = shift;
-    return $self->{_sections};
+    return $self->{_sections} || [];
+}
+
+=head2 mold
+
+Accessor for the mold property. See L<compress> and L<uncompress> for more info on
+what this property is used for.
+
+=cut
+
+sub mold {
+    my $self = shift;
+    return $self->{_mold};
 }
 
 =head2 lastSectionIndex
@@ -1140,7 +1271,7 @@ Returns the total number of Sections
 
 sub totalSections {
     my $self = shift;
-    return scalar @{ $self->sections || [] };
+    return scalar @{ $self->sections };
 }
 
 =head2 totalQuestions ($address)
@@ -1158,7 +1289,7 @@ sub totalQuestions {
     my ($address) = validate_pos(@_, { type => ARRAYREF, optional => 1 });
 
     if ($address) {
-        return scalar @{ $self->questions($address) || [] };
+        return scalar @{ $self->questions($address) };
     } else {
         my $count = 0;
         for my $sIndex (0 .. $self->lastSectionIndex) {
@@ -1183,7 +1314,7 @@ sub totalAnswers {
     my ($address) = validate_pos(@_, { type => ARRAYREF, optional => 1 });
 
     if ($address) {
-        return scalar @{ $self->answers($address) || [] };
+        return scalar @{ $self->answers($address) };
     } else {
         my $count = 0;
         for my $sIndex (0 .. $self->lastSectionIndex) {
@@ -1402,11 +1533,11 @@ sub questions {
     my ($address) = validate_pos(@_, { type => ARRAYREF, optional => 1});
 
     if ($address) {
-        return $self->sections->[ $address->[0] ]->{questions};
+        return $self->sections->[ $address->[0] ]->{questions} || [];
     } else {
         my $questions;
         push @$questions, @{$_->{questions} || []} for @{$self->sections};
-        return $questions;
+        return $questions || [];
     }
 }
 
@@ -1460,7 +1591,7 @@ sub answers {
     my $self    = shift;
     my ($address) = validate_pos(@_, { type => ARRAYREF});
 
-    return $self->sections->[ $address->[0] ]->{questions}->[ $address->[1] ]->{answers};
+    return $self->sections->[ $address->[0] ]->{questions}->[ $address->[1] ]->{answers} || [];
 }
 
 =head2 answer ($address)

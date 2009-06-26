@@ -828,9 +828,7 @@ sub www_submitObjectEdit {
     return $self->session->privilege->insufficient()
         unless $self->session->user->isInGroup( $self->get('groupToEditSurvey') );
 
-    my $params = $self->session->form->paramsHashRef();
-    
-    return $self->submitObjectEdit($params);
+    return $self->submitObjectEdit( $self->session->form->paramsHashRef );
 }
 
 #-------------------------------------------------------------------
@@ -989,10 +987,13 @@ See L<WebGUI::Asset::Wobject::Survey::SurveyJSON/Address Parameter>
 
 sub deleteObject {
     my ( $self, $address ) = @_;
+    
+    $self->session->log->debug("Deleting object: " . join '-', @$address);
 
     # Each object checks the ref and then either updates or passes it to the correct child. 
     # New objects will have an index of -1.
     my $message = $self->surveyJSON_remove($address);
+    $self->session->log->debug(Dumper($self->surveyJSON->{_sections}));
 
     # The parent address of the deleted object is returned.
     if ( @{$address} == 1 ) {
@@ -1054,13 +1055,15 @@ sub www_dragDrop {
     my @bid = split /-/, $p->{before}->{id};
 
     my $target = $self->surveyJSON->getObject( \@tid );
-    $self->surveyJSON_remove( \@tid, 1 );
+    $self->surveyJSON->remove( \@tid, 1 );
     my $address = [0];
     if ( @tid == 1 ) {
-
+        
         #sections can only be inserted after another section so chop off the question and answer portion of
         $#bid = 0;
         $bid[0] = -1 if ( !defined $bid[0] );
+        
+        $self->session->log->debug("Moving section $bid[0] to $tid[0]");
 
         #If target is being moved down, then before has just moved up do to the target being deleted
         $bid[0]-- if($tid[0] < $bid[0]);
@@ -1301,7 +1304,7 @@ sub view {
     my $self    = shift;
     my $var     = $self->getMenuVars;
     
-    my $responseDetails = $self->getResponseDetails;
+    my $responseDetails = $self->getResponseDetails || {};
 
     # Add lastResponse template vars
     for my $tv qw(endDate complete restart timeout timeoutRestart) {
@@ -1390,7 +1393,7 @@ sub getResponseDetails {
     
     if (!$responseId) {
         $self->session->log->debug("ResponseId not found");
-        return {};
+        return;
     }
     
     my ( $completeCode, $endDate, $rJSON, $ruserId, $rusername ) = $self->session->db->quickArray(
@@ -1667,7 +1670,8 @@ sub www_showFeedback {
         return $self->session->privilege->insufficient();
     }
     
-    my $out = $self->getResponseDetails( { responseId => $responseId } )->{templateText};
+    my $rd = $self->getResponseDetails( { responseId => $responseId } ) || {};
+    my $out = $rd->{templateText};
     return $self->session->style->process( $out, $self->get('styleTemplateId') );
 }
 
@@ -1923,7 +1927,6 @@ sub persistSurveyJSON {
 
     my $data = $self->surveyJSON->freeze();
     $self->update({surveyJSON=>$data});
-#    $self->session->db->write( 'update Survey set surveyJSON = ? where assetId = ?', [ $data, $self->getId ] );
 
     return;
 }
@@ -1940,7 +1943,7 @@ sub persistResponseJSON {
     my $self = shift;
     my $data = $self->responseJSON->freeze();
     $self->session->db->write( 'update Survey_response set responseJSON = ? where Survey_responseId = ?',
-        [ $data, $self->responseId( { noCreate => 1 } ) ] );
+        [ $data, $self->responseId( { ignoreRevisionDate => 1 } ) ] );
     return;
 }
 
@@ -2061,15 +2064,15 @@ and thus should not count towards tally)
 
 The following options are supported
 
-=head4 userId
+=head4 userId (optional)
 
-The userId to count responses for (required)
+The userId to count responses for. Defaults to the current user
 
-=head4 ipAddress
+=head4 ipAddress (optional)
 
-An IP address to filter responses by (optional)
+An IP address to filter responses by
 
-=head4 isComplete
+=head4 isComplete  (optional)
 
 A complete code to use to filter responses by (optional, defaults to 1)
 
@@ -2077,8 +2080,10 @@ A complete code to use to filter responses by (optional, defaults to 1)
 
 sub takenCount {
     my $self = shift;
-    my %opts = validate(@_, { userId => 1, ipAddress => 0, isComplete => 0 });
+    my %opts = validate(@_, { userId => 0, ipAddress => 0, isComplete => 0 });
     my $isComplete = defined $opts{isComplete} ? $opts{isComplete} : 1;
+    
+    $opts{userId} ||= $self->session->user->userId;
     
     my $sql = 'select count(*) from Survey_response where';
     $sql .= ' assetId = ' . $self->session->db->quote($self->getId);
@@ -2117,10 +2122,10 @@ sub canTakeSurvey {
     my $takenCount          = 0;
 
     if ( $userId == 1 ) {
-        $takenCount = $self->takenCount( { userId => $userId, ipAddress => $ip });
+        $takenCount = $self->takenCount( { ipAddress => $ip });
     }
     else {
-        $takenCount = $self->takenCount( { userId => $userId });
+        $takenCount = $self->takenCount;
     }
 
     # A maxResponsesPerUser value of 0 implies unlimited
