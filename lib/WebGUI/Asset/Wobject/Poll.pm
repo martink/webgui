@@ -465,7 +465,6 @@ sub view {
             my $chart = WebGUI::Chart->newByConfiguration( $self->session, $config );
             $chart->addDataset( \@dataset );
             $chart->setLabels( \@labels );
-            $chart->axis->set( { xTickCount => scalar @dataset } );
             
             $var{chart_html} = $chart->toHtml;
             $var{hasImageGraph} = 1;
