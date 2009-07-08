@@ -2707,19 +2707,20 @@ sub www_edit {
 
 =head2 www_editSave ( )
 
-Saves and updates history. If canEdit, returns www_manageAssets() if a new Asset is created, otherwise returns www_view().  Will return an insufficient Privilege if canEdit returns False.
+Saves and updates history. If canEdit, returns www_manageAssets() if a new Asset is created, otherwise returns www_view().  Will return an insufficient Privilege if canEdit returns False, or if the submitted form does not pass the C<$session->form->validToken> check.
 
 NOTE: Don't try to override or overload this method. It won't work. What you are looking for is processPropertiesFromFormPost().
 
 =cut
 
 sub www_editSave {
-    my $self = shift;
+    my $self    = shift;
+    my $session = $self->session;
 
     ##If this is a new asset (www_add), the parent may be locked.  We should still be able to add a new asset.
-    my $isNewAsset = $self->session->form->process("assetId") eq "new" ? 1 : 0;
-    return $self->session->privilege->locked() if (!$self->canEditIfLocked and !$isNewAsset);
-    return $self->session->privilege->insufficient() unless $self->canEdit;
+    my $isNewAsset = $session->form->process("assetId") eq "new" ? 1 : 0;
+    return $session->privilege->locked() if (!$self->canEditIfLocked and !$isNewAsset);
+    return $session->privilege->insufficient() unless $self->canEdit && $session->form->validToken;
     if ($self->session->config("maximumAssets")) {
         my ($count) = $self->session->db->quickArray("select count(*) from asset");
         my $i18n = WebGUI::International->new($self->session, "Asset");
@@ -2757,7 +2758,7 @@ sub www_editSave {
     $object->updateHistory("edited");
 
     # we handle auto commit assets here in case they didn't handle it themselves
-    if ($object->getAutoCommitWorkflowId && $self->hasBeenCommitted) {
+    if ($object->getAutoCommitWorkflowId) {
         $object->requestAutoCommit;
     }
     # else, try to to auto commit

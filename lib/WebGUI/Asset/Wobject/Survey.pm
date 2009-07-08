@@ -20,6 +20,7 @@ use base 'WebGUI::Asset::Wobject';
 use WebGUI::Asset::Wobject::Survey::SurveyJSON;
 use WebGUI::Asset::Wobject::Survey::ResponseJSON;
 use WebGUI::Form::Country;
+use WebGUI::VersionTag;
 use Text::CSV_XS;
 use Params::Validate qw(:all);
 Params::Validate::validation_options( on_fail => sub { WebGUI::Error::InvalidParam->throw( error => shift ) } );
@@ -671,9 +672,19 @@ sub www_editSurvey {
     
     return $self->session->privilege->insufficient()
         if !$self->session->user->isInGroup( $self->get('groupToEditSurvey') );
-
+    
+    return $self->session->privilege->locked() unless $self->canEditIfLocked;
     return $self->processTemplate( {}, $self->get('surveyEditTemplateId') );
 }
+
+#-------------------------------------------------------------------
+
+=head2 getAdminConsole 
+
+Extends the base class to add in survey controls like edit, view graph, run tests, and
+test suite.
+
+=cut
 
 sub getAdminConsole {
     my $self = shift;
@@ -751,6 +762,22 @@ sub www_graph {
     return $ac->render($f->print . $output, $i18n->get('survey visualization'));
 }
 
+=head2 hasResponses
+
+Returns true if this Survey instance revision has any responses (started, finished or otherwise)
+associated with it
+
+=cut
+
+sub hasResponses {
+    my $self = shift;
+    my $session = $self->session;
+    
+    return $self->session->db->quickScalar(
+        'select count(*) from Survey_response where assetId = ? and revisionDate = ?',
+        [ $self->getId, $self->get('revisionDate') ] ) > 0;
+}
+
 #-------------------------------------------------------------------
 
 =head2 submitObjectEdit ( $params )
@@ -771,22 +798,31 @@ these special actions will be carried out by delegating to e.g. L<deleteObject>,
 sub submitObjectEdit {
     my $self = shift;
     my $params = shift || {};
+    my $session = $self->session;
 
     # Id is made up of at most: sectionIndex-questionIndex-answerIndex
     my @address = split /-/, $params->{id};
 
-    # We will create a new revision if any responses exist for the current revision
-    my $responses
-        = $self->session->db->quickScalar(
-        'select count(*) from Survey_response where assetId = ? and revisionDate = ?',
-        [ $self->getId, $self->get('revisionDate') ] );
-
     # Get a reference to the Survey instance that we want to perform updates on
     my $survey = $self;
-    if ($responses) {
-        $self->session->log->debug( "Creating a new revision, $responses responses exist for the current revision "
+    
+    # We will create a new revision if any responses exist for the current revision
+    if ($self->hasResponses) {
+        $self->session->log->debug( "Creating a new revision, responses exist for the current revision: "
                 . $self->get('revisionDate') );
+        
+        # New revision should be created and then committed automatically
+        my $oldVersionTag = WebGUI::VersionTag->getWorking($session, 'noCreate');
+        my $newVersionTag = WebGUI::VersionTag->create($session, { workflowId => 'pbworkflow00000000003', });
+        $newVersionTag->setWorking;
+        
+        # Create the new revision
         $survey = $self->addRevision;
+        
+        $newVersionTag->commit();
+        
+        #Restore the old one, if it exists
+        $oldVersionTag->setWorking() if $oldVersionTag;
     }
 
     # See if any special actions were requested..
@@ -828,6 +864,9 @@ sub www_submitObjectEdit {
     return $self->session->privilege->insufficient()
         unless $self->session->user->isInGroup( $self->get('groupToEditSurvey') );
 
+    return $self->session->privilege->locked()
+        unless $self->canEditIfLocked;
+    
     return $self->submitObjectEdit( $self->session->form->paramsHashRef );
 }
 
@@ -993,7 +1032,6 @@ sub deleteObject {
     # Each object checks the ref and then either updates or passes it to the correct child. 
     # New objects will have an index of -1.
     my $message = $self->surveyJSON_remove($address);
-    $self->session->log->debug(Dumper($self->surveyJSON->{_sections}));
 
     # The parent address of the deleted object is returned.
     if ( @{$address} == 1 ) {
@@ -2111,8 +2149,9 @@ sub canTakeSurvey {
     my $self = shift;
 
     return $self->{canTake} if ( defined $self->{canTake} );
-
-    if ( !$self->session->user->isInGroup( $self->get('groupToTakeSurvey') ) ) {
+    
+    # Immediately reject if not in groupToTakeSurvey or groupToEditSurvey
+    if ( !$self->session->user->isInGroup( $self->get('groupToTakeSurvey') ) && !$self->session->user->isInGroup( $self->get('groupToEditSurvey') ) ) {
         return 0;
     }
 
@@ -2330,6 +2369,13 @@ sub www_exportTransposedResults {
 
 #-------------------------------------------------------------------
 
+=head2 www_exportStructure 
+
+Exports the surveyJSON as either HTML or a downloadable CSV file, based on the
+C<format> form variable.
+
+=cut
+
 sub www_exportStructure {
     my $self = shift;
 
@@ -2513,7 +2559,7 @@ sub www_editDefaultQuestions{
 
 #-------------------------------------------------------------------
 
-=head2 www_downloadDefaulQuestions
+=head2 www_downloadDefaultQuestionTypes
 
 Sends the user a json file of the default question types, which can be imported to other WebGUI instances.
 
@@ -2798,6 +2844,10 @@ sub www_runTest {
     
     my $test = WebGUI::Asset::Wobject::Survey::Test->new($session, $testId)
         or return $self->www_editTestSuite('Unable to find test');
+    
+    # Remove any in-progress reponses for current user
+    $self->session->db->write( 'delete from Survey_response where assetId = ? and userId = ? and isComplete = 0',
+        [ $self->getId, $self->session->user->userId() ] );
     
     my $result = $test->run or return $self->www_editTestSuite('Unable to run test');
     

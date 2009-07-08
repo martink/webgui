@@ -617,7 +617,7 @@ sub createTemp {
 	my $path    = $session->id->toHex($id);
 
 	$path =~ m/^(.{2})/;
-	my $self = {_session=>$session, _id => $id, _Hexid => $path, _pathParts => ['temp', $1, $path], _errors => []};
+	my $self = {_session=>$session, _id => $id, _hexId => $path, _pathParts => ['temp', $1, $path], _errors => []};
 	bless $self, ref($class)||$class;
 	$self->_makePath;
 	return $self;
@@ -1350,7 +1350,7 @@ sub crop {
 
 #-------------------------------------------------------------------
 
-=head2 annotate ( filename [ text ] )
+=head2 annotate ( filename, $asset, $form )
 
 Adds annotation text to the image.
 
@@ -1358,9 +1358,13 @@ Adds annotation text to the image.
 
 The name of the file to annotate.
 
-=head3 text
+=head3 asset
 
-Text to add.
+The WebGUI Asset containing this image.
+
+=head3 $form
+
+A Session::Form object, used to fetch form data.
 
 =cut
 
@@ -1477,7 +1481,7 @@ sub rotate {
 
 =head2 resize ( filename [, width, height ] )
 
-Resizes the specified image by the specified height and width. If either is omitted the iamge will be scaleed proportionately to the non-omitted one.
+Resizes the specified image by the specified height and width. If either is omitted the iamge will be scaled proportionately to the non-omitted one.
 
 =head3 filename
 

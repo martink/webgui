@@ -391,6 +391,28 @@ sub getDateTimeEnd {
     }
 }
 
+####################################################################
+
+=head2 getDateTimeEndNI
+
+Since the iCal standard is that ending dates are non-inclusive (they
+do not include the second at the end of the time period), this method
+provide a copy of the DateTime object that is 1 second earlier than
+the set ending time.
+
+It's just one line of DateTime code to adjust this on any object, but
+this is encapsulated here to make sure that the same amount of time
+is used EVERYWHERE.
+
+=cut
+
+sub getDateTimeEndNI {
+    my $self = shift;
+    my $dt   = $self->getDateTimeEnd;
+    $dt->subtract(seconds => 1);
+    return $dt;
+}
+
 
 
 
@@ -1277,7 +1299,8 @@ sub getTemplateVars {
     $var{ "startDateEpoch"      } = $dtStart->epoch;
     
     # End date/time
-    my $dtEnd = $self->getDateTimeEnd;
+    my $dtEnd   = $self->getDateTimeEnd;
+    my $dtEndNI = $self->getDateTimeEndNI;
     
     $var{ "endDateSecond"       } = sprintf "%02d", $dtEnd->second;
     $var{ "endDateMinute"       } = sprintf "%02d", $dtEnd->minute;
@@ -1489,15 +1512,16 @@ sub processPropertiesFromFormPost {
     ### Verify the form was filled out correctly...
     my @errors;
     # If the start date is after the end date
+    my $i18n = WebGUI::International->new($session, 'Asset_Event');
     if ($self->get("startDate") gt $self->get("endDate")) {
-        push @errors, "The event end date must be after the event start date.";
+        push @errors, $i18n->get("The event end date must be after the event start date.");
     }
 
     # If the dates are the same and the start time is after the end time
     if ($self->get("startDate") eq $self->get("endDate")
         && $self->get("startTime") gt $self->get("endTime")
        ) {
-        push @errors, "The event end time must be after the event start time.";
+        push @errors, $i18n->get("The event end time must be after the event start time.");
     }
     
     if (@errors) {
