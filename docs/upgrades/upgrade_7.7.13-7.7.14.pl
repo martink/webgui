@@ -27,7 +27,6 @@ use WebGUI::Asset;
 my $toVersion = '7.7.14';
 my $quiet; # this line required
 
-
 my $session = start(); # this line required
 
 # upgrade functions go here
@@ -58,7 +57,14 @@ sub addPackage {
     $storage->addFileFromFilesystem( $file );
 
     # Import the package into the import node
-    my $package = WebGUI::Asset->getImportNode($session)->importPackage( $storage );
+    my $package = eval { WebGUI::Asset->getImportNode($session)->importPackage( $storage ); };
+
+    if ($package eq 'corrupt') {
+        die "Corrupt package found in $file.  Stopping upgrade.\n";
+    }
+    if ($@ || !defined $package) {
+        die "Error during package import on $file: $@\nStopping upgrade\n.";
+    }
 
     # Turn off the package flag, and set the default flag for templates added
     my $assetIds = $package->getLineage( ['self','descendants'] );
