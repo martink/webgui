@@ -17,7 +17,7 @@ sub _submenu {
         $title = $i18n->get($title) if ($title);
         my $ac = WebGUI::AdminConsole->new($session,"graphics");
 	$ac->addSubmenuItem($session->url->page('op=listPalettes'), $i18n->get('manage palettes'));
-	$ac->addSubmenuItem($session->url->page('op=listFonts'), $i18n->get('manage fonts'));
+	$ac->addSubmenuItem($session->url->page('graphics=font'), $i18n->get('manage fonts'));
 	$ac->addSubmenuItem($session->url->page('op=editPalette;pid=new'), $i18n->get('add palette'));
 	$ac->addSubmenuItem($session->url->page('op=editFont;fid=new'), $i18n->get('add font')); 
 
@@ -449,7 +449,7 @@ sub www_listGraphicsOptions {
 	my $i18n = WebGUI::International->new($session, 'Graphics');	
 	
 	$output .= '<a href="'.$session->url->page('op=listPalettes').'">'.$i18n->get('manage palettes').'</a><br />';
-	$output .= '<a href="'.$session->url->page('op=listFonts').'">'.$i18n->get('manage fonts').'</a><br />';
+	$output .= '<a href="'.$session->url->page('graphics=font').'">'.$i18n->get('manage fonts').'</a><br />';
 
 	return _submenu($session, $output);
 }

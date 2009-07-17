@@ -83,9 +83,9 @@ sub definition {
 
     tie my %properties, 'Tie::IxHash', (
         font => {
-            fieldType       => 'selectBox',
+            fieldType       => 'font',
             label           => 'Font',
-            options         => $fonts,
+#            options         => $fonts,
         },
         width => {
             fieldType       => 'integer',
