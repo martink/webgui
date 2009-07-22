@@ -1,29 +1,54 @@
 7.7.16
+ - Fix template not found diagnostics.
+ - fixed #10665: Navigations with old templates still in 7.7.16
+ - fixed #10662: Manage Clipboard / delete item
+ - fixed #10637: shelf displays assets it shouldn't
+ - fixed #10660: Crud doesn't like 0 (Patrick Donelan, SDH Consulting)
+ - fixed #10668: shop pay drivers
+ - fixed: Pay Drivers update their objects
+ - fixed #10652: Story Archive: hover help confusing
+ - fixed #10653: Story Archive: Description text doesn't display
+ - fixed #10656: Story: Photo caption doesn't appear
+ - fixed #10658: Delete in Story Archive doesn't delete in Story Topic
+ - fixed #10676: Settings>Account Tab: typos
+ - WebGUI::Shop::PayDriver::PayPal moved to WebGUI::Shop::PayDriver::PayPal::ExpressCheckout.
+ - WebGUI::Shop::PayDriver::PayPal::PayPalStd is back, now functional.
+ - fixed #10671: shop checkout address copy broken
+ - fixed #10678: i18n in WebGUI::versionTags.icon
+ - fixed #10679: i18n TaxDriver_EU::accept when vies unavailable help
+ - fixed #10680: i18n PayDriver_Ogone::use test mode help
+ - fixed #10681: i18n PassiveAnalytics::regexp help
+ - fixed #10682: i18 PassiveAnalytics::User help
+ - fixed #10683: i18n Asset_Story::crumb_url
+ - fixed #10684: i18n Asset_StoryTopic::deleteIcon
+ - fixed #10685: i18n Asset_StoryTopic::rssUrl 
+ - fixed #10686: Can't access Database Links
+ - fixed #10650: Unflatten WebGUI storage locations
 
 7.7.15
-  - fixed #10629: WebGUI::ProfileField create new field bug
-  - fixed #10626: Carriage returns stripped from Wiki comments
-  - fixed #10572: CDN / CloudFront breaks 7.7.11 upgrade
-  - fixed #10630: If macro says that 0 is true
-  - WebGUI::Shop::PayDriver::PayPal::PayPalStd replaced by WebGUI::Shop::PayDriver::PayPal.  PayPalStd fought the Shop API and didn't work.
-  - fixed #10633: GET requests in Operation/User require valid CSRF token.
-  - fixed #10621: ThingRecord needs an Asset Icon
-  - fixed #10638: Paste from Admin Bar broken
-  - fixed per-field prices in ThingyRecord
-  - fixed a bug where VersionTag->get would return an unsafe copy of its
-    state ( Martin Kamerbeek / Oqapi )
-  - fixed a bug in the Ogone pay driver where for certain combinations of tax
-    rates and in store credit a rounding error would prevent checkout at
-    Ogone. ( Martin Kamerbeek / Oqapi )
-  - fixed a bug in My Purchases where in store credit would not be taken into
-    account in the overview yielding zero or neagtive transaction amounts on
-    the screen. ( Martin Kamerbeek / Oqapi )
-  - fixed #10646: Asset History not paginated
-  - fixed #10645: Asset History: search results not sorted as expected
-  - fixed #10648: Story Topic: Photos don't display
-  - fixed #10649: Story Manager Keywords not working correctly
-  - fixed #10643: Products: Pictures gone
-  - imported new templates from the Template Working Group
+ - fixed #10629: WebGUI::ProfileField create new field bug
+ - fixed #10626: Carriage returns stripped from Wiki comments
+ - fixed #10572: CDN / CloudFront breaks 7.7.11 upgrade
+ - fixed #10630: If macro says that 0 is true
+ - WebGUI::Shop::PayDriver::PayPal::PayPalStd replaced by WebGUI::Shop::PayDriver::PayPal.  PayPalStd fought the Shop API and didn't work.
+ - fixed #10633: GET requests in Operation/User require valid CSRF token.
+ - fixed #10621: ThingRecord needs an Asset Icon
+ - fixed #10638: Paste from Admin Bar broken
+ - fixed per-field prices in ThingyRecord
+ - fixed a bug where VersionTag->get would return an unsafe copy of its
+   state ( Martin Kamerbeek / Oqapi )
+ - fixed a bug in the Ogone pay driver where for certain combinations of tax
+   rates and in store credit a rounding error would prevent checkout at
+   Ogone. ( Martin Kamerbeek / Oqapi )
+ - fixed a bug in My Purchases where in store credit would not be taken into
+   account in the overview yielding zero or neagtive transaction amounts on
+   the screen. ( Martin Kamerbeek / Oqapi )
+ - fixed #10646: Asset History not paginated
+ - fixed #10645: Asset History: search results not sorted as expected
+ - fixed #10648: Story Topic: Photos don't display
+ - fixed #10649: Story Manager Keywords not working correctly
+ - fixed #10643: Products: Pictures gone
+ - imported new templates from the Template Working Group
 
 7.7.14
  - fixed #10606: shelf selector
