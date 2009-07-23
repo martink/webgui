@@ -32,11 +32,16 @@ sub handler {
     my $output  = undef;
 
     my $graphics    = $session->form->get('graphics');
-    my $func        = $session->form->get('func') || 'view'; 
+    my $method      = $session->form->get('method') || 'view'; 
 
-    if ( $graphics eq 'font' ) {
-        my $output = eval { WebGUI::Pluggable::instanciate( 'WebGUI::Graphics::Font', "www_$func", [ $session ] ) };
-        $session->log->warn( $@ . ' - ' . $! ) if $@;
+    my $dispatch    = {
+        font    => 'WebGUI::Graphics::Font',
+        palette => 'WebGUI::Graphics::Palette',
+    };
+
+    if ( exists $dispatch->{ $graphics } ) {
+        my $output = eval { WebGUI::Pluggable::instanciate( $dispatch->{ $graphics }, "www_$method", [ $session ] ) };
+        $session->log->warn( "Could not execute method $method on module $dispatch->{ $graphics } because: $@" ) if $@;
 
         return $output;
     }

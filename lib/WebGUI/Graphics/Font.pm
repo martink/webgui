@@ -5,27 +5,10 @@ use strict;
 use WebGUI::Storage;
 use WebGUI::HTMLForm;
 use WebGUI::International;
-use WebGUI::AdminConsole;
+use WebGUI::Graphics::Admin;
 use Image::Magick;
 
-use Data::Dumper;
-use Class::InsideOut;
-
 use base qw{ WebGUI::Crud };
-
-sub getAdminConsole {
-    my $session = shift;
-    my $url     = $session->url;
-	my $i18n    = WebGUI::International->new($session, "Graphics");
-
-    my $ac = WebGUI::AdminConsole->new($session,"graphics");
-	$ac->addSubmenuItem( $url->page( 'op=listPalettes' ),        $i18n->get('manage palettes')   );
-	$ac->addSubmenuItem( $url->page( 'op=listFonts' ),           $i18n->get('manage fonts')      );
-	$ac->addSubmenuItem( $url->page( 'op=editPalette;pid=new' ), $i18n->get('add palette')       );
-	$ac->addSubmenuItem( $url->page( 'op=editFont;fid=new' ),    $i18n->get('add font')          ); 
-    
-    return $ac;
-}
 
 #-------------------------------------------------------------------
 sub crud_definition {
@@ -145,6 +128,7 @@ sub getStorage {
     return $storage;
 }
 
+#-------------------------------------------------------------------
 sub updateFromFormPost {
     my $self    = shift;
     my $session = $self->session;
@@ -184,22 +168,31 @@ sub updateFromFormPost {
     }
 }
 
+#-------------------------------------------------------------------
 sub www_delete {
     my $class   = shift;
     my $session = shift;
-    my $fontId  = $session->form->process( 'fid' );
+    my $admin   = WebGUI::Graphics::Admin->new( $session );
 
-    my $font = $class->new( $session, $fontId );
+    return $session->privilege->adminOnly unless $admin->canManage;
+    
+    my $fontId  = $session->form->process( 'fid' );
+    my $font    = $class->new( $session, $fontId );
     $font->delete if $font;
 
     return $class->www_view( $session );
 }
 
+#-------------------------------------------------------------------
 sub www_edit {
     my $class   = shift;
     my $session = shift;
-    my $fontId  = $session->form->process( 'fid' );
+    my $admin   = WebGUI::Graphics::Admin->new( $session );
+
+    return $session->privilege->adminOnly unless $admin->canManage;
+    
     my $font;
+    my $fontId  = $session->form->process( 'fid' );
 
     if ( $fontId eq 'new' ) {
         $font = $class->create( $session );
@@ -214,7 +207,7 @@ sub www_edit {
         value   => 'font',
     );
     $f->hidden(
-        name    => 'func',
+        name    => 'method',
         value   => 'editSave',
     );
     $f->hidden(
@@ -229,16 +222,20 @@ sub www_edit {
         $font->delete;
     }
 
-    return getAdminConsole( $session )->render( $f->print, 'Edit font' );
+    return $admin->getAdminConsole->render( $f->print, 'Edit font' );
 }
 
+#-------------------------------------------------------------------
 sub www_editSave {
     my $class   = shift;
     my $session = shift;
     my $form    = $session->form;
-    my $fontId  = $form->process( 'fid' );
+    my $admin   = WebGUI::Graphics::Admin->new( $session );
 
+    return $session->privilege->adminOnly unless $admin->canManage;
+    
     my $font;
+    my $fontId  = $form->process( 'fid' );
 
     if ( $fontId eq 'new' ) {
         $font = $class->create( $session );
@@ -252,24 +249,24 @@ sub www_editSave {
     return $class->www_view( $session );
 }
 
+#-------------------------------------------------------------------
 sub www_view {
     my $class   = shift;
 	my $session = shift;
+    my $i18n    = WebGUI::International->new($session, 'Graphics');
+    my $admin   = WebGUI::Graphics::Admin->new( $session );
 
-#	return $session->privilege->adminOnly() unless canView($session);
-
-    my $i18n = WebGUI::International->new($session, 'Graphics');
-	
+    return $session->privilege->adminOnly unless $admin->canManage;
+    
 	my $output .= '<table>';
 	$output .= '<tr><th></th><th>'.$i18n->get('font name').'</th></tr>';
-
 
     my $iterator = $class->getAllIterator( $session );
 	while ( my $font = $iterator->() ) {
 		$output .= '<tr>';
 		$output .= '<td>';
-		$output .= $session->icon->delete( 'graphics=font;func=delete;fid=' . $font->getId );
-		$output .= $session->icon->edit( 'graphics=font;func=edit;fid=' . $font->getId );
+		$output .= $session->icon->delete( 'graphics=font;method=delete;fid=' . $font->getId );
+		$output .= $session->icon->edit( 'graphics=font;method=edit;fid=' . $font->getId );
 		$output .= '</td>';
 		$output .= '<td>' . $font->get('name') . '</td>';
         $output .= '<td><img src="'.$font->getStorage->getUrl( '.preview.png' ).'" /></td>';
@@ -277,9 +274,9 @@ sub www_view {
 	}
 	$output .= '</table>';
 
-	$output .= '<a href="'.$session->url->page('graphics=font;func=edit;fid=new').'">'.$i18n->get('add font').'</a><br />';
+	$output .= '<a href="'.$session->url->page('graphics=font;method=edit;fid=new').'">'.$i18n->get('add font').'</a><br />';
 
-    return getAdminConsole( $session )->render( $output, 'Manage fonts' );
+    return $admin->getAdminConsole->render( $output, 'Manage fonts' );
 }
 
 1;
