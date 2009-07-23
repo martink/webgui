@@ -76,6 +76,64 @@ sub getId {
 }
 
 #-------------------------------------------------------------------
+sub getStorage {
+    my $self    = shift;
+    my $session = $self->session;
+    my $storage;
+
+    if ( $self->crud->get('previewStorage') ) {
+        $storage = WebGUI::Storage->get( $session, $self->crud->get('previewStorage') );
+    }
+    else {
+        $storage = WebGUI::Storage->create( $session );
+        $self->crud->update( { previewStorage => $storage->getId } );
+    }
+
+    return $storage;
+}
+
+#-------------------------------------------------------------------
+sub generatePreview {
+    my $self = shift;
+
+    my $blockWidth   = 40;
+    my $blockHeight  = 40;
+    my $blockSpacing = 10;
+    my $borderOffset = 20;
+
+    my $width   = 2*$borderOffset + $self->getNumberOfColors * ( $blockWidth + $blockSpacing ) - $blockSpacing;
+    my $height  = 2*$borderOffset + $blockHeight;
+
+    my $image = Image::Magick->new;
+    $image->Set(size => $width .'x'. $height);
+    $image->ReadImage('xc:white');
+
+
+    my $x1 = $borderOffset;
+    my $y1 = $borderOffset;
+    foreach my $color (@{$self->getColorsInPalette}) {
+        my $x2 = $x1 + $blockWidth;
+        my $y2 = $y1 + $blockHeight;
+$self->session->log->warn( '['.$color->getFillColor .']['. $color->getStrokeColor . ']');
+
+        $image->Draw(
+            primitive   => 'rectangle',
+            points      => "$x1,$y1 $x2,$y2",
+            fill        => $color->getFillColor,
+            stroke      => $color->getStrokeColor,
+            strokeWidth => 5,
+        );
+
+        $x1 += $blockWidth + $blockSpacing;
+    }
+
+    my $storage = $self->getStorage;
+    $image->Write( $storage->getPath( '.preview.png' ) );
+
+    return $storage->getUrl( '.preview.png' );
+}
+
+#-------------------------------------------------------------------
 sub new {
     my $class       = shift;
     my $session     = shift;
@@ -336,12 +394,15 @@ sub www_view {
 
     my $iterator = WebGUI::Graphics::Palette::Persist->getAllIterator( $session );
 	while ( my $palette = $iterator->() ) {
+        # TODO: Change this to only generate previews when something changes. Here now for testing purposes only.
+        my $previewUrl = $class->new( $session, $palette->getId )->generatePreview;
 		$output .= '<tr>';
 		$output .= '<td>';
 		$output .= $session->icon->delete('graphics=palette;method=delete;paletteId=' . $palette->getId );
 		$output .= $session->icon->edit('graphics=palette;method=edit;paletteId=' . $palette->getId );
 		$output .= '</td>';
 		$output .= '<td>' . $palette->get('name') . '</td>';
+        $output .= qq{<td><img src="$previewUrl" /></td>};
 		$output .= '</tr>';
 	}
 	$output .= '</table>';
