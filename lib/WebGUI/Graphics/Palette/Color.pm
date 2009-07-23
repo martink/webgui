@@ -19,7 +19,7 @@ sub crud_definition {
 	# Create transparencies in 5% increments
 	tie my %transparencies, 'Tie::IxHash', (
         '00' => 'Opaque',
-        ( map { sprintf( "%02x", $_ ) => 5 * $_ .'% Transparent' } 1..19 ),
+        ( map { uc( sprintf( "%02x", 255 / 20 * $_ ) ) => 5 * $_ .'% Transparent' } 1..19 ),
         'ff' => 'Invisible',
     );
 
