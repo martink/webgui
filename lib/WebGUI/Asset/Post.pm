@@ -652,7 +652,9 @@ sub getSynopsisAndContent {
 	unless ($synopsis) {
            my @content;
            if( $body =~ /\^\-\;/ ) {
-               @content = split(/\^\-\;/, $body ,2);
+               my @pieces = WebGUI::HTML::splitSeparator($body);
+               $content[0] = shift @pieces;
+               $content[1] = join '', @pieces;
            }
            elsif( $body =~ /<p>/ ) {
                @content = WebGUI::HTML::splitTag($body);
@@ -1251,6 +1253,23 @@ sub recalculatePostRating {
 
 #-------------------------------------------------------------------
 
+=head2 restore
+
+Extend the base class to also make the thread containing this post to recalculate its replies and
+the thread rating.
+
+=cut
+
+sub restore {
+    my $self = shift;
+    $self->SUPER::restore(@_);
+    $self->getThread->sumReplies;
+    $self->getThread->updateThreadRating;
+}
+
+
+#-------------------------------------------------------------------
+
 =head2 rethreadUnder ($thread)
 
 Update the Post's threadId property with a new thread.
@@ -1321,7 +1340,7 @@ sub setStatusUnarchived {
 
 =head2 trash ( )
 
-Moves post to the trash and updates reply counter on thread.
+Moves post to the trash, updates reply counter on thread and recalculates the thread rating.
 
 =cut
 
@@ -1329,6 +1348,7 @@ sub trash {
     my $self = shift;
     $self->SUPER::trash;
     $self->getThread->sumReplies if ($self->isReply);
+    $self->getThread->updateThreadRating;
     if ($self->getThread->get("lastPostId") eq $self->getId) {
         my $threadLineage = $self->getThread->get("lineage");
         my ($id, $date) = $self->session->db->quickArray("select assetId, creationDate from asset where 
@@ -1676,7 +1696,7 @@ sub www_edit {
             # Add a "Select..." option on top of a select list to prevent from
             # saving the value on top of the list when no choice is made.
             if("\l$fieldType" eq "selectBox") {
-                $options = "|" . $i18n->get("Select") . "\n" . $options;
+                $options = "|" . $i18n->get("select") . "\n" . $options;
             }
             my $form = WebGUI::Form::DynamicField->new($session,
                 name      => "metadata_".$meta->{$field}{fieldId},

@@ -7,7 +7,66 @@ upgrading from one version to the next, or even between multiple
 versions. Be sure to heed the warnings contained herein as they will
 save you many hours of grief.
 
-7.6.16
+7.8.0
+--------------------------------------------------------------------
+
+    !!! IMPORTANT !!!
+    You must upgrade to 7.7.20 before upgrading to 7.8.0
+
+7.7.19
+--------------------------------------------------------------------
+    * The search indexer was not properly indexing non-ASCII content
+      entered via TinyMCE.  The behaviour has been corrected.  If your
+      site has content in languages other than English, you should
+      re-index the site.  This can be done with the search.pl utility
+      script by running
+        perl search.pl --configFile=www.mysite.com.conf --indexsite
+      or, to index all of the sites on the server:
+        perl search.pl --indexall
+
+    * For searching content with ideograms, ft_min_word_len must be
+      set to 2 in the Mysql config file.  WebGUI will safely pad the
+      characters so that it does not need to be set to 1.  The WRE
+      has ft_min_word_len set to 2 by default.
+
+    * If upgrading from WebGUI 7.6, you must first upgrade to 7.6.35,
+      then you can upgrade to WebGUI 7.7.19 and beyond.
+
+7.7.18
+--------------------------------------------------------------------
+    * The search indexer was not properly indexing non-ASCII content.  The
+      behaviour has been corrected.  If your site has content in languages
+      other than English, you should re-index the site.  This can be done
+      with the search.pl utility script by running
+        perl search.pl --configFile=www.mysite.com.conf --indexsite
+      or, to index all of the sites on the server:
+        perl search.pl --indexall
+
+7.7.17
+--------------------------------------------------------------------
+    * It was found that the combination of
+        DBI: 1.52
+        DBD-mysql: 3.002
+      will cause an error during the 7.6.32 upgrade.  Later versions
+      of these modules should work.
+
+    * Spectre now works like many other programs and uses a PID
+      file.  By default, it will use /var/run/spectre.pid, but you
+      can change that in your spectre.conf file:
+
+# The location of the file that keeps track of the master spectre
+# processId.
+"pidFile" : "/var/run/spectre.pid", ##Or some other location
+
+      After installing this version, you should manually kill spectre and
+      then modify the spectre.conf file to add the pidFile directive.
+
+    * The Default Gallery Album View Thumbnails template has been reworked
+      to get rid of intermittent rendering bugs with IE7.  The thumbnail
+      pop-up is now completely CSS.  The thumbnails.js file is still available,
+      but is now considered deprecated.
+
+7.7.16
 --------------------------------------------------------------------
     * There was some confusion about the state of 
       WebGUI::Shop::PayDriver::PayPal::PayPalStd.  While it was in fact
@@ -155,7 +214,7 @@ save you many hours of grief.
 --------------------------------------------------------------------
    * WebGUI now requires Digest::SHA.
    
-   * WebGUI now requires JavsScript::Minifier::XS 0.05
+   * WebGUI now requires JavaScript::Minifier::XS 0.05
    
    * WebGUI now requires CSS::Minifier::XS 0.03
 
@@ -207,6 +266,11 @@ save you many hours of grief.
      Any custom assets using those are recommended to switch to the new
      RssFeed AssetAspect.  If not used by custom assets, the tables
      used by them will be removed from the database.
+
+     This will change the URLs for your RSS Feeds from "myAsset.rss" to
+     "myAsset?func=viewRss".  You will need to update all Syndicated Content
+     assets and other content aggregators that had the old URLs.  Alternately,
+     you can use Redirect assets to forward the old URL to the new one.
 
 7.7.1
 --------------------------------------------------------------------

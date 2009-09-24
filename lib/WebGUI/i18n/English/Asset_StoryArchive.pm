@@ -171,6 +171,12 @@ our $I18N = {
         lastUpdated => 0,
     },
 
+    'keyword list template' => {
+        message => q|Story Archive, Keyword List Template|,
+        context => q|Title of a help page.|,
+        lastUpdated => 0,
+    },
+
     'view template' => {
         message => q|Story Archive, View Template|,
         context => q|Title of a help page.|,
@@ -298,9 +304,9 @@ our $I18N = {
     },
 
     'asset url' => {
-        message => q|The title of this url.|,
+        message => q|The URL of this asset.|,
         context => q|Template variable.|,
-        lastUpdated => 0,
+        lastUpdated => 1250263822,
     },
 
     'keyword' => {

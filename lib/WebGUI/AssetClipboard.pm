@@ -54,6 +54,7 @@ sub canPaste {
 =head2 cut ( )
 
 Removes asset from lineage, places it in clipboard state. The "gap" in the lineage is changed in state to clipboard-limbo.
+Return 1 if the cut was successful, otherwise it returns undef.
 
 =cut
 
@@ -65,9 +66,12 @@ sub cut {
 	$session->db->write("update asset set state='clipboard-limbo' where lineage like ? and state='published'",[$self->get("lineage").'%']);
 	$session->db->write("update asset set state='clipboard', stateChangedBy=?, stateChanged=? where assetId=?", [$session->user->userId, $session->datetime->time(), $self->getId]);
 	$session->db->commit;
-	$self->updateHistory("cut");
 	$self->{_properties}{state} = "clipboard";
-	$self->purgeCache;
+    foreach my $asset ($self, @{$self->getLineage(['descendants'], {returnObjects => 1})}) {
+        $asset->purgeCache;
+        $asset->updateHistory('cut');
+    }
+    return 1;
 }
  
 
@@ -90,9 +94,13 @@ Assets that normally autocommit their workflows (like CS Posts, and Wiki Pages) 
 sub duplicate {
     my $self        = shift;
     my $options     = shift;
+    my $parent      = $self->getParent;
     my $newAsset    
-        = $self->getParent->addChild( $self->get, undef, $self->get("revisionDate"), { skipAutoCommitWorkflows => $options->{skipAutoCommitWorkflows} } );
+        = $parent->addChild( $self->get, undef, $self->get("revisionDate"), { skipAutoCommitWorkflows => $options->{skipAutoCommitWorkflows} } );
 
+    $self->session->log->error(
+        sprintf "Unable to add child %s (%s) to %s (%s)", $self->getTitle, $self->getId, $parent->getTitle, $parent->getId
+    );
     # Duplicate metadata fields
     my $sth = $self->session->db->read(
         "select * from metaData_values where assetId = ?", 
@@ -294,7 +302,8 @@ sub www_copyList {
 sub www_createShortcut {
 	my $self    = shift;
     my $session = $self->session;
-	return $session->privilege->insufficient() unless ($self->session->user->isInGroup(4));	
+    return $session->privilege->insufficient()
+        if !$session->user->isInGroup(12) || !$self->canView;
 	my $isOnDashboard = $self->getParent->isa('WebGUI::Asset::Wobject::Dashboard');
 
 	my $shortcutParent = $isOnDashboard? $self->getParent : WebGUI::Asset->getImportNode($session);
@@ -335,7 +344,8 @@ sub www_createShortcut {
 
 =head2 www_cut ( )
 
-Cuts (removes to clipboard) self, returns the www_view of the Parent if canEdit. Otherwise returns AdminConsole rendered insufficient privilege.
+If the current user canEdit, it puts $self into the clipboard and calls www_view on it's container.
+Otherwise returns AdminConsole rendered insufficient privilege.
 
 =cut
 
@@ -345,8 +355,14 @@ sub www_cut {
     return $self->session->privilege->vitalComponent
         if $self->get('isSystem');
 	$self->cut;
-	$self->session->asset($self->getParent);
-	return $self->getParent->www_view;
+    my $asset = $self->getContainer;
+    if ($self->getId eq $asset->getId) {
+        $asset = $self->getParent;
+    }
+	$self->session->asset($asset);
+	return $asset->www_view;
+
+
 }
 
 #-------------------------------------------------------------------

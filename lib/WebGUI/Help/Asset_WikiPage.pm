@@ -59,6 +59,7 @@ our $HELP = {
             {   name        => 'canEdit',
                 description => 'canEdit variable',
             },
+            {   name        => 'isProtected', },
             {   name        => 'historyLabel',
                 description => 'historyLabel variable',
             },
@@ -76,6 +77,22 @@ our $HELP = {
             },
             { 'name' => 'editContent', },
             { 'name' => 'content', },
+            {
+                name        => 'isSubscribed',
+                description => 'help isSubscribed',
+            },
+            {
+                name        => 'subscribeUrl',
+                description => 'help subscribeUrl',
+            },
+            {
+                name        => 'unsubscribeUrl',
+                description => 'help unsubscribeUrl',
+            },
+            {
+                name        => 'owner',
+                description => 'help owner',
+            },
         ],
         related => [],
     },
@@ -110,6 +127,17 @@ our $HELP = {
         related => [],
     },
 
+
+    'subscription template' => {
+        title       => 'help subscription title',
+        body        => 'help subscription body',
+        isa         => [
+            {
+                tag       => 'view template',
+                namespace => 'Asset_WikiPage',
+            },
+        ],
+    },
 };
 
 1;

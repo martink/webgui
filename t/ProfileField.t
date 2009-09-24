@@ -33,7 +33,7 @@ WebGUI::Test->usersToDelete($newUser);
 #----------------------------------------------------------------------------
 # Tests
 
-plan tests => 28;        # Increment this number for each test you create
+plan tests => 47;        # Increment this number for each test you create
 
 #----------------------------------------------------------------------------
 # Test the creation of ProfileField
@@ -124,11 +124,63 @@ is($newProfileField2->getLabel, 'WebGUI', 'getLabel will process safeEval calls 
 ok( WebGUI::ProfileField->exists($session,"firstName"), "firstName field exists" );
 ok( !WebGUI::ProfileField->exists($session, time), "random field does not exist" );
 
+###########################################################
+#
+# isReservedFieldName
+#
+###########################################################
+
+ok(  WebGUI::ProfileField->isReservedFieldName('func'),   'isReservedFieldName: func');
+ok(  WebGUI::ProfileField->isReservedFieldName('op'),     '... op');
+ok(  WebGUI::ProfileField->isReservedFieldName('userId'), '... userId');
+ok(  WebGUI::ProfileField->isReservedFieldName('wg_privacySettings'), '... wg_privacySettings');
+ok( !WebGUI::ProfileField->isReservedFieldName('function'),  '... function is not');
+ok( !WebGUI::ProfileField->isReservedFieldName('operation'), '... operation is not');
+ok(  WebGUI::ProfileField->isReservedFieldName('shop'),      '... shop is not');
+ok(  WebGUI::ProfileField->isReservedFieldName('username'),  '... username');
+ok(  WebGUI::ProfileField->isReservedFieldName('status'),    '... status');
+
+###########################################################
+#
+# exists
+#
+###########################################################
+
+ok(  WebGUI::ProfileField->exists($session, 'email'),  'exists: email');
+ok( !WebGUI::ProfileField->exists($session, 'userId'), '... userId (not)');
+
+###########################################################
+#
+# set
+#
+###########################################################
+
+my $newProfileField3 = WebGUI::ProfileField->create($session, 'testField3', {
+    label     => q|WebGUI::International::get('webgui','WebGUI')|,
+    fieldName => 'Text',
+});
+
+is ($newProfileField3->get('editable'), 0, 'default editable = 0');
+is ($newProfileField3->get('required'), 0, 'default required = 0');
+
+$newProfileField3->set({ editable => 1});
+is ($newProfileField3->get('editable'), 1, 'set editable=1');
+is ($newProfileField3->get('required'), 0, '... required=0');
+
+$newProfileField3->set({ editable => 0});
+is ($newProfileField3->get('editable'), 0, 'set editable = 0');
+is ($newProfileField3->get('required'), 0, '... required = 0');
+
+$newProfileField3->set({ required => 1});
+is ($newProfileField3->get('required'), 1, 'set required = 1');
+is ($newProfileField3->get('editable'), 1, '... editable = 1');
+
 #----------------------------------------------------------------------------
 # Cleanup
 END {
     $newProfileField->delete;
     $newProfileField2->delete;
+    $newProfileField3->delete;
 }
 
 

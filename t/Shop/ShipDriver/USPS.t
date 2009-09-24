@@ -24,6 +24,10 @@ use Data::Dumper;
 use WebGUI::Test; # Must use this before any other WebGUI modules
 use WebGUI::Session;
 
+plan tests => 46;
+use_ok('WebGUI::Shop::ShipDriver::USPS')
+    or die 'Unable to load module WebGUI::Shop::ShipDriver::USPS';
+
 #----------------------------------------------------------------------------
 # Init
 my $session   = WebGUI::Test->session;
@@ -34,13 +38,9 @@ $session->user({user => $user});
 #----------------------------------------------------------------------------
 # Tests
 
-my $tests = 41;
-plan tests => 1 + $tests;
-
 #----------------------------------------------------------------------------
 # put your tests here
 
-my $loaded = use_ok('WebGUI::Shop::ShipDriver::USPS');
 
 my $storage;
 my ($driver, $cart);
@@ -93,10 +93,7 @@ my $nivBible = $bible->setCollateral('variantsJSON', 'variantId', 'new',
 );
 
 $versionTag->commit;
-
-SKIP: {
-
-skip 'Unable to load module WebGUI::Shop::ShipDriver::USPS', $tests unless $loaded;
+WebGUI::Test->tagsToRollback($versionTag);
 
 #######################################################################
 #
@@ -699,7 +696,64 @@ SKIP: {
 }
 
 
+$properties = $driver->get();
+$properties->{shipType} = 'PRIORITY VARIABLE';
+$driver->update($properties);
+
+$xml = $driver->buildXML($cart, @shippableUnits);
+my $xmlData = XMLin($xml,
+    KeepRoot   => 1,
+    ForceArray => ['Package'],
+);
+cmp_deeply(
+    $xmlData,
+    {
+        RateV3Request => {
+            USERID => $userId,
+            Package => [
+                {
+                    ID => 0,
+                    ZipDestination => '53715',    ZipOrigination => '97123',
+                    Pounds         => '1',        Ounces         => '8',
+                    Size           => 'REGULAR',  Service        => 'PRIORITY',
+                    Machinable     => 'true',#     Container      => 'VARIABLE',
+                },
+            ],
+        }
+    },
+    'buildXML: PRIORITY, VARIABLE service, 1 item in cart'
+);
+like($xml, qr/RateV3Request USERID.+?Package ID=.+?Service.+?ZipOrigination.+?ZipDestination.+?Pounds.+?Ounces.+?Size.+?Machinable/, '... and tag order');
+
+SKIP: {
+
+    skip 'No userId for testing', 2 unless $hasRealUserId;
+
+    my $response = $driver->_doXmlRequest($xml);
+    ok($response->is_success, '... _doXmlRequest to USPS successful');
+    my $xmlData = XMLin($response->content, ForceArray => [qw/Package/],);
+    cmp_deeply(
+        $xmlData,
+        {
+            Package => [
+                {
+                    ID             => 0,
+                    ZipOrigination => ignore(), ZipDestination => ignore(),
+                    Ounces         => ignore(), Pounds         => ignore(),
+                    Size           => ignore(), Zone           => ignore(),
+                    Postage        => {
+                        CLASSID     => ignore(),
+                        MailService => ignore(),
+                        Rate        => num(8,8),  ##A number around 10...
+                    }
+                },
+            ],
+        },
+        '... returned data from USPS in correct format.  If this test fails, the driver may need to be updated'
+    );
+
 }
+
 
 #----------------------------------------------------------------------------
 # Cleanup
@@ -711,8 +765,5 @@ END {
         my $addressBook = $cart->getAddressBook();
         $addressBook->delete if $addressBook;
         $cart->delete;
-    }
-    if (defined $versionTag) {
-        $versionTag->rollback;
     }
 }

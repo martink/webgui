@@ -3058,9 +3058,9 @@ or are under your current version tag.</p>
         },
 
 	'help' => {
-		message => q|Help|,
+		message => q|Template Help|,
 		lastUpdated =>1092930637,
-                context => q|Title of the help index for the admin console.|
+        context => q|Title of the help index for the admin console.|
         },
 
 	'content filters' => {
@@ -3492,8 +3492,8 @@ a user.|,
 	},
 
 	'help index' => {
-		message => q|Index|,
-		lastUpdated => 1128552837
+		message => q|Help Index|,
+		lastUpdated => 1252424721
 	},
 
 	'help toc' => {
@@ -4258,12 +4258,6 @@ LongTruncOk=1</p>
         context     => q{General purpose, similar to submit.},
     },
 
-    'save' => {
-        message     => q{Save},
-        lastUpdated => 0,
-        context     => q{General purpose, similar to submit.},
-    },
-
     'company information' => {
         message     => q{Company Information},
         lastUpdated => 0,
@@ -4555,7 +4549,7 @@ Users may override this setting in their profile.
     },
 
  	'sms gateway' => {
- 		message => q|SMS gateway|,
+ 		message => q|SMS Gateway|,
  		context => q|email to SMS/text email address for this site.|,
  		lastUpdated => 1235685248,
  	},
@@ -4563,6 +4557,17 @@ Users may override this setting in their profile.
  	'sms gateway help' => {
  		message => q|The email address that this site would use to send an SMS message.|,
  		lastUpdated => 1235695517,
+ 	},
+ 	
+ 	'sms gateway subject' => {
+ 		message => q|SMS Gateway Subject|,
+ 		context => q|Subject to use for the SMS Gateway for this site.|,
+ 		lastUpdated => 0,
+ 	},
+
+ 	'sms gateway subject help' => {
+ 		message => q|The email subject to pass to the SMS Gateway (typically used for SMS Gateway authorization).|,
+ 		lastUpdated => 0,
  	},
  
     'Select One' => {
@@ -4620,6 +4625,11 @@ Users may override this setting in their profile.
         message => 'Clear',
         lastUpdated => 0,
         context => 'To empty or wipe-out, similar to erase.',
+    },
+
+    'Comments' => {
+        message => 'Comments',
+        lastUpdated => 0,
     },
 
 };

@@ -94,7 +94,8 @@ sub definition {
             defaultValue=>undef,
             maxAttachments=>1,
             label=>$i18n->get(7),
-            deleteFileUrl=>$session->url->page("func=deleteFileConfirm;file=image1;filename=")
+            deleteFileUrl=>$session->url->page("func=deleteFileConfirm;file=image1;filename="),
+            persist => 1,
         },
         image2=>{
             tab => "properties",
@@ -102,7 +103,8 @@ sub definition {
             maxAttachments=>1,
             label=>$i18n->get(8),
             deleteFileUrl=>$session->url->page("func=deleteFileConfirm;file=image2;filename="),
-            defaultValue=>undef
+            defaultValue=>undef,
+            persist => 1,
         },
         image3=>{
             tab => "properties",
@@ -110,7 +112,8 @@ sub definition {
             maxAttachments=>1,
             label=>$i18n->get(9),
             deleteFileUrl=>$session->url->page("func=deleteFileConfirm;file=image3;filename="),
-            defaultValue=>undef
+            defaultValue=>undef,
+            persist => 1,
         },
         brochure=>{
             tab => "properties",
@@ -118,7 +121,8 @@ sub definition {
             maxAttachments=>1,
             label=>$i18n->get(13),
             deleteFileUrl=>$session->url->page("func=deleteFileConfirm;file=brochure;filename="),
-            defaultValue=>undef
+            defaultValue=>undef,
+            persist => 1,
         },
         manual=>{
             tab => "properties",
@@ -126,7 +130,8 @@ sub definition {
             maxAttachments=>1,
             label=>$i18n->get(14),
             deleteFileUrl=>$session->url->page("func=deleteFileConfirm;file=manual;filename="),
-            defaultValue=>undef
+            defaultValue=>undef,
+            persist => 1,
         },
         isShippingRequired => {
             tab          => "shop",
@@ -141,37 +146,44 @@ sub definition {
             maxAttachments=>1,
             label=>$i18n->get(15),
             deleteFileUrl=>$session->url->page("func=deleteFileConfirm;file=warranty;filename="),
-            defaultValue=>undef
+            defaultValue=>undef,
+            persist => 1,
         },
         variantsJSON => {
             ##Collateral data is stored as JSON in here
             autoGenerate => 0,
             defaultValue => '[]',
+            fieldType=>"textarea",
         },
         accessoryJSON => {
             ##Collateral data is stored as JSON in here
             autoGenerate => 0,
             defaultValue => '[]',
+            fieldType=>"textarea",
         },
         relatedJSON => {
             ##Collateral data is stored as JSON in here
             autoGenerate => 0,
             defaultValue => '[]',
+            fieldType=>"textarea",
         },
         specificationJSON => {
             ##Collateral data is stored as JSON in here
             autoGenerate => 0,
             defaultValue => '[]',
+            fieldType=>"textarea",
         },
         featureJSON => {
             ##Collateral data is stored as JSON in here
             autoGenerate => 0,
             defaultValue => '[]',
+            fieldType=>"textarea",
         },
         benefitJSON => {
             ##Collateral data is stored as JSON in here
             autoGenerate => 0,
             defaultValue => '[]',
+            fieldType=>"textarea",
         },
     );
     push(@{$definition}, {
@@ -1680,23 +1692,29 @@ sub view {
     my $i18n = WebGUI::International->new($session,'Asset_Product');
     if ($brochure) {
         my $file = WebGUI::Storage->get($session,$brochure);
-        $var{"brochure_icon"}  = $self->getFileIconUrl($file);
-        $var{"brochure_label"} = $i18n->get(13);
-        $var{"brochure_URL"}   = $self->getFileUrl($file);
+        if ($self->getFilename($file)) {
+            $var{"brochure_icon"}  = $self->getFileIconUrl($file);
+            $var{"brochure_label"} = $i18n->get(13);
+            $var{"brochure_URL"}   = $self->getFileUrl($file);
+        }
     }
     #---manual
     if ($manual) {
         my $file = WebGUI::Storage->get($session,$manual);
-        $var{"manual_icon"}  = $self->getFileIconUrl($file);
-        $var{"manual_label"} = $i18n->get(14);
-        $var{"manual_URL"}   = $self->getFileUrl($file);
+        if ($self->getFilename($file)) {
+            $var{"manual_icon"}  = $self->getFileIconUrl($file);
+            $var{"manual_label"} = $i18n->get(14);
+            $var{"manual_URL"}   = $self->getFileUrl($file);
+        }
     }
     #---warranty
     if ($warranty) {
         my $file = WebGUI::Storage->get($session,$warranty);
-        $var{"warranty_icon"}  = $self->getFileIconUrl($file);
-        $var{"warranty_label"} = $i18n->get(15);
-        $var{"warranty_URL"}   = $self->getFileUrl($file);
+        if ($self->getFilename($file)) {
+            $var{"warranty_icon"}  = $self->getFileIconUrl($file);
+            $var{"warranty_label"} = $i18n->get(15);
+            $var{"warranty_URL"}   = $self->getFileUrl($file);
+        }
     }
     #---image1
     if ($image1) {

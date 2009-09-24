@@ -837,8 +837,8 @@ case of the check box list, then enter one per line.  The total amount of data i
                    message => q|Hide from navigation?|
                  },
         '43' => {
-                  lastUpdated => 1149960436,
-                  message => q|Are you certain that you wish to delete this content? Note that this change is not versioned and will take place immediately.|
+                  message => q|Are you certain that you wish to delete this content, and all content below it? Note that this change is not versioned and will take place immediately.|,
+                  lastUpdated => 1250091423,
                 },
         '940' => {
                    lastUpdated => 1050438829,
@@ -1318,12 +1318,12 @@ Couldn't open %-s because %-s <br />
 
     'Trying to delete system page %s.  Aborting' => {
         message     => q{Trying to delete system page %s.  Aborting},
-        lastUpdated => 0,
+        lastUpdated => 1251071942,
         context     => q{},
     },
 
     'Undefined child' => {
-        message     => q{Trying to delete system page %s.  Aborting purge},
+        message     => q{Undefined child.},
         lastUpdated => 0,
         context     => q{},
     },
@@ -1360,6 +1360,12 @@ Couldn't open %-s because %-s <br />
 
     'Clearing asset tables' => {
         message     => q{Clearing asset tables},
+        lastUpdated => 0,
+        context     => q{},
+    },
+
+    'Delete Assets' => {
+        message     => q{Delete Assets},
         lastUpdated => 0,
         context     => q{},
     },

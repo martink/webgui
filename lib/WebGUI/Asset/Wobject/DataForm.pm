@@ -51,22 +51,24 @@ These methods are available from this class:
 
 #-------------------------------------------------------------------
 sub _createForm {
-    my $self = shift;
-    my $data = shift;
-    my $value = shift;
+    my $self    = shift;
+    my $data    = shift;
+    my $value   = shift;
+    my $session = $self->session;
     # copy select entries
-    my %param = map { $_ => $data->{$_} } qw(name width extras vertical defaultValue options);
-    $param{value} = $value;
-    $param{size} = $param{width};
+    my %param      = map { $_ => $data->{$_} } qw(name width extras vertical defaultValue options);
+    $param{value}  = $value;
+    $param{size}   = $param{width};
     $param{height} = $data->{rows};
 
-    WebGUI::Macro::process($self->session, \( $param{defaultValue} ));
+    WebGUI::Macro::process($session, \( $param{defaultValue} ));
 
-    my $type = "\u$data->{type}";
+    my $type = ucfirst $data->{type};
     my $class = "WebGUI::Form::$type";
-    eval {
-        WebGUI::Pluggable::load("WebGUI::Form::$type");
-    } || return undef;
+    if (!  eval { WebGUI::Pluggable::load("WebGUI::Form::$type"); } ) {
+        $session->log->error( "Unable to load form control - $type" );
+        return undef;
+    }
     if ($type eq "Checkbox") {
         $param{defaultValue} = ($param{defaultValue} =~ /checked/i);
     }
@@ -76,7 +78,7 @@ sub _createForm {
     elsif ( $type eq 'HTMLArea' && $data->{htmlAreaRichEditor} ne '**Use_Default_Editor**') {
         $param{richEditId} = $data->{htmlAreaRichEditor}  ;
     }
-    return $class->new($self->session, \%param);
+    return $class->new($session, \%param);
 }
 
 #-------------------------------------------------------------------
@@ -713,9 +715,11 @@ sub getListTemplateVars {
     while ( my $entry = $entryIter->() ) {
         my $entryData = $entry->fields;
         my @dataLoop;
+        my %dataVars;
         for my $fieldName ( @{ $self->getFieldOrder } ) {
             my $field = $fieldConfig->{$fieldName};
             my $form = $self->_createForm($field, $entryData->{$fieldName});
+            $dataVars{ 'record.noloop.' . $fieldName } = $entryData->{$fieldName};
             push @dataLoop, {
                 "record.data.name"          => $field->{name},
                 "record.data.label"         => $field->{label},
@@ -725,6 +729,7 @@ sub getListTemplateVars {
             };
         }
         push @recordLoop, {
+            %dataVars,
             "record.ipAddress"              => $entry->ipAddress,
             "record.edit.url"               => $self->getFormUrl("func=view;entryId=".$entry->getId),
             "record.edit.icon"              => $self->session->icon->edit("func=view;entryId=".$entry->getId, $self->get('url')),
@@ -1339,7 +1344,8 @@ sub www_deleteFieldConfirm {
     $newSelf->deleteField($self->session->form->process("fieldName"));
     $newSelf->{_mode} = 'form';
     WebGUI::VersionTag->autoCommitWorkingIfEnabled($self->session);
-    return $newSelf->www_view;
+    my $freshSelf = $newSelf->cloneFromDb();
+    return $freshSelf->www_view;
 }
 
 #-------------------------------------------------------------------
@@ -1363,7 +1369,8 @@ sub www_deleteTabConfirm {
     $newSelf->deleteTab($self->session->form->process("tabId"));
     $newSelf->{_mode} = 'form';
     WebGUI::VersionTag->autoCommitWorkingIfEnabled($self->session);
-    return $newSelf->www_view;
+    my $freshSelf = $newSelf->cloneFromDb();
+    return $freshSelf->www_view;
 }
 
 #-------------------------------------------------------------------
@@ -1582,13 +1589,13 @@ sub www_editFieldSave {
         $newSelf->createField($newName, \%field);
     }
 
-
-    if ($form->process("proceed") eq "editField") {
-        return $newSelf->www_editField('new');
-    }
-    $newSelf->{_mode} = 'form';
     WebGUI::VersionTag->autoCommitWorkingIfEnabled($self->session);
-    return $newSelf->www_view;
+    my $freshSelf = $newSelf->cloneFromDb();
+    if ($form->process("proceed") eq "editField") {
+        return $freshSelf->www_editField('new');
+    }
+    $freshSelf->{_mode} = 'form';
+    return $freshSelf->www_view;
 }
 
 #-------------------------------------------------------------------
@@ -1824,7 +1831,8 @@ sub www_moveFieldDown {
     my $fieldName = $self->session->form->process('fieldName');
     $newSelf->moveFieldDown($fieldName);
     WebGUI::VersionTag->autoCommitWorkingIfEnabled($self->session);
-    return $newSelf->www_view;
+    my $freshSelf = $newSelf->cloneFromDb();
+    return $freshSelf->www_view;
 }
 
 #-------------------------------------------------------------------
@@ -1881,7 +1889,8 @@ sub www_moveFieldUp {
     my $fieldName = $self->session->form->process('fieldName');
     $newSelf->moveFieldUp($fieldName);
     WebGUI::VersionTag->autoCommitWorkingIfEnabled($self->session);
-    return $newSelf->www_view;
+    my $freshSelf = $newSelf->cloneFromDb();
+    return $freshSelf->www_view;
 }
 
 #-------------------------------------------------------------------
@@ -1939,7 +1948,8 @@ sub www_moveTabRight {
     my $tabId = $self->session->form->process('tabId');
     $newSelf->moveTabRight($tabId);
     WebGUI::VersionTag->autoCommitWorkingIfEnabled($self->session);
-    return $newSelf->www_view;
+    my $freshSelf = $newSelf->cloneFromDb();
+    return $freshSelf->www_view;
 }
 
 
@@ -1992,7 +2002,8 @@ sub www_moveTabLeft {
     my $tabId = $self->session->form->process('tabId');
     $newSelf->moveTabLeft($tabId);
     WebGUI::VersionTag->autoCommitWorkingIfEnabled($self->session);
-    return $newSelf->www_view;
+    my $freshSelf = $newSelf->cloneFromDb();
+    return $freshSelf->www_view;
 }
 
 #-------------------------------------------------------------------

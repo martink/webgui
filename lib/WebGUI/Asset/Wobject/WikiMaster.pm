@@ -11,13 +11,35 @@ package WebGUI::Asset::Wobject::WikiMaster;
 #-------------------------------------------------------------------
 
 use Class::C3;
-use base qw(WebGUI::AssetAspect::RssFeed WebGUI::Asset::Wobject);
+use base qw(
+    WebGUI::AssetAspect::Subscribable 
+    WebGUI::AssetAspect::RssFeed 
+    WebGUI::Asset::Wobject
+);
 use strict;
 use Tie::IxHash;
 use WebGUI::International;
 use WebGUI::Utility;
 use HTML::Parser;
 use URI::Escape;
+
+#-------------------------------------------------------------------
+
+=head2 appendFeaturedPageVars ( var, asset )
+
+Append the template variables to C<var> for the featured page C<asset>. Returns
+the C<var> for convenience.
+
+=cut
+
+sub appendFeaturedPageVars {
+    my ( $self, $var, $asset ) = @_;
+    my $assetVar = $asset->getTemplateVars;
+    for my $key ( keys %{$assetVar} ) {
+        $var->{ 'featured_' . $key } = $assetVar->{$key};
+    }
+    return $var;
+}
 
 #-------------------------------------------------------------------
 
@@ -415,6 +437,25 @@ sub definition {
 
 #-------------------------------------------------------------------
 
+=head2 getFeaturedPageIds ( )
+
+Get the asset IDs of the pages that are marked as Featured.
+
+=cut
+
+sub getFeaturedPageIds {
+    my ( $self ) = @_;
+
+    my $assetIds    = $self->getLineage( ['children'], {
+        joinClass       => 'WebGUI::Asset::WikiPage',
+        whereClause     => 'isFeatured = 1',
+    } );
+    
+    return $assetIds;
+}
+
+#-------------------------------------------------------------------
+
 =head2 getRssFeedItems ()
 
 Returns an array reference of hash references. Each hash reference has a title,
@@ -440,6 +481,36 @@ sub getRssFeedItems {
             'author'        => $item->{ 'username' },
         };
     }
+    
+    return $var;
+}
+
+#----------------------------------------------------------------------------
+
+=head2 getTemplateVars ( )
+
+Get the common template variables for all views of the wiki.
+
+=cut
+
+sub getTemplateVars {
+    my ( $self ) = @_;
+    my $i18n    = WebGUI::International->new($self->session, "Asset_WikiMaster");
+    my $var     = { %{$self->get},
+        url                 => $self->getUrl,
+        searchLabel         => $i18n->get("searchLabel"),	
+        mostPopularUrl      => $self->getUrl("func=mostPopular"),
+        mostPopularLabel    => $i18n->get("mostPopularLabel"),
+        addPageLabel        => $i18n->get("addPageLabel"),
+        addPageUrl          => $self->getUrl("func=add;class=WebGUI::Asset::WikiPage"),
+        recentChangesUrl    => $self->getUrl("func=recentChanges"),
+        recentChangesLabel  => $i18n->get("recentChangesLabel"),
+        restoreLabel        => $i18n->get("restoreLabel"),
+        canAdminister       => $self->canAdminister,
+        isSubscribed        => $self->isSubscribed,
+        subscribeUrl        => $self->getSubscribeUrl,
+        unsubscribeUrl      => $self->getUnsubscribeUrl,
+    };
     
     return $var;
 }
@@ -492,6 +563,19 @@ sub processPropertiesFromFormPost {
 
 #-------------------------------------------------------------------
 
+=head2 shouldSkipNotification ( )
+
+WikiMasters do not send notification
+
+=cut
+
+sub shouldSkipNotification {
+    my ( $self ) = @_;
+    return 1;
+}
+
+#-------------------------------------------------------------------
+
 =head2 view 
 
 Render the front page of the wiki.
@@ -500,24 +584,24 @@ Render the front page of the wiki.
 
 sub view {
 	my $self = shift;
-	my $i18n = WebGUI::International->new($self->session, "Asset_WikiMaster");
-	my $var = {
-		description => $self->autolinkHtml($self->get('description')),
-		searchLabel=>$i18n->get("searchLabel"),	
-		mostPopularUrl=>$self->getUrl("func=mostPopular"),
-		mostPopularLabel=>$i18n->get("mostPopularLabel"),
-		addPageLabel=>$i18n->get("addPageLabel"),
-		addPageUrl=>$self->getUrl("func=add;class=WebGUI::Asset::WikiPage"),
-		recentChangesUrl=>$self->getUrl("func=recentChanges"),
-		recentChangesLabel=>$i18n->get("recentChangesLabel"),
-		restoreLabel => $i18n->get("restoreLabel"),
-		canAdminister => $self->canAdminister,
-        keywordCloud => WebGUI::Keyword->new($self->session)->generateCloud({
-            startAsset=>$self,
-            displayFunc=>"byKeyword",
-            }),
-		};
+    my $session = $self->session;
+        my $var = $self->getTemplateVars;
+        $var->{ description     } = $self->autolinkHtml( $var->{ description } );
+        $var->{ keywordCloud } 
+            = WebGUI::Keyword->new($self->session)->generateCloud({
+                startAsset=>$self,
+                displayFunc=>"byKeyword",
+            });
 	my $template = $self->{_frontPageTemplate};
+
+    # Get a random featured page
+    my $featuredIds = $self->getFeaturedPageIds;
+    my $featuredId  = $featuredIds->[ int( rand @$featuredIds ) - 1 ]; 
+    my $featured    = WebGUI::Asset->newByDynamicClass( $session, $featuredId );
+    if ( $featured ) {
+        $self->appendFeaturedPageVars( $var, $featured );
+    }
+
 	$self->appendSearchBoxVars($var);
 	$self->appendRecentChanges($var, $self->get('recentChangesCountFront'));
 	$self->appendMostPopular($var, $self->get('mostPopularCountFront'));
@@ -542,7 +626,7 @@ sub www_byKeyword {
         keyword         => $keyword,   
         usePaginator    => 1,
         });
-    $p->setBaseUrl($self->getUrl("func=byKeyword"));
+    $p->setBaseUrl($self->getUrl("func=byKeyword;keyword=".$keyword));
     foreach my $assetData (@{$p->getPageData}) {
         my $asset = WebGUI::Asset->newByDynamicClass($self->session, $assetData->{assetId});
         next unless defined $asset;

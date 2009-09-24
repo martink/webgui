@@ -81,7 +81,7 @@ WebGUI::Test->storagesToDelete($storage1, $storage2);
 #
 ############################################################
 
-my $tests = 44;
+my $tests = 45;
 plan tests => 1
             + $tests
             + $canEditMaker->plan
@@ -130,6 +130,7 @@ is($story->get('isHidden'), 1, 'by default, stories are hidden');
 $story->update({isHidden => 0});
 is($story->get('isHidden'), 1, 'stories cannot be set to not be hidden');
 is($story->get('state'),    'published', 'Story is published');
+$story->requestAutoCommit;
 
 {
     ##Version control does not alter the current object's status, fetch an updated copy from the
@@ -146,6 +147,14 @@ is($story->get('state'),    'published', 'Story is published');
 ############################################################
 
 is($story->getArchive->getId, $archive->getId, 'getArchive gets the parent archive for the Story');
+
+############################################################
+#
+# getContainer
+#
+############################################################
+
+is($story->getContainer->getId, $archive->getId, 'getContainer gets the parent archive for the Story');
 
 ############################################################
 #
@@ -315,7 +324,7 @@ $story->setPhotoData([
 
 
 my $viewVariables = $story->viewTemplateVariables;
-#diag Dumper $viewVariables;
+#note explain $viewVariables;
 cmp_deeply(
     $viewVariables->{highlights_loop},
     [

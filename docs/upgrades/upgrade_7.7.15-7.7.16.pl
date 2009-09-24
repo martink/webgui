@@ -22,6 +22,7 @@ use Getopt::Long;
 use WebGUI::Session;
 use WebGUI::Storage;
 use WebGUI::Asset;
+use WebGUI::ProfileField;
 use List::MoreUtils qw/uniq/;
 
 my $toVersion = '7.7.16';
@@ -31,6 +32,8 @@ my $quiet; # this line required
 my $session = start(); # this line required
 replaceUsageOfOldTemplatesAgain($session);
 updatePayPalDriversAgain($session);
+addThingyRecordFieldPriceDefaults($session);
+correctProfileFieldColumnTypes($session);
 
 # upgrade functions go here
 
@@ -45,6 +48,15 @@ finish($session); # this line required
 #    # and here's our code
 #    print "DONE!\n" unless $quiet;
 #}
+
+#----------------------------------------------------------------------------
+sub correctProfileFieldColumnTypes {
+    my $session = shift;
+    my $config  = $session->config;
+    print "\tCheck database profile field types against form settings..." unless $quiet;
+    WebGUI::ProfileField->fixDataColumnTypes($session);
+    print "DONE!\n" unless $quiet;
+}
 
 #----------------------------------------------------------------------------
 sub updatePayPalDriversAgain {
@@ -89,6 +101,15 @@ sub replaceUsageOfOldTemplatesAgain {
         print "\n\t\t\tPurging ". $template->getTitle . " ..." unless $quiet;
         $template->purge;
     }
+    print "DONE!\n" unless $quiet;
+}
+
+#----------------------------------------------------------------------------
+sub addThingyRecordFieldPriceDefaults {
+    my $session = shift;
+    print "\tAdd default fieldPrice JSON to ThingyRecord... " unless $quiet;
+    # and here's our code
+    $session->db->write(q|UPDATE ThingyRecord set fieldPrice='{}' where fieldPrice IS NULL|);
     print "DONE!\n" unless $quiet;
 }
 

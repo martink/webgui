@@ -19,6 +19,7 @@ use WebGUI::Utility;
 use base 'WebGUI::Asset::Wobject';
 use WebGUI::Asset::Wobject::Survey::SurveyJSON;
 use WebGUI::Asset::Wobject::Survey::ResponseJSON;
+use WebGUI::Asset::Wobject::Survey::Test;
 use WebGUI::Form::Country;
 use WebGUI::VersionTag;
 use Text::CSV_XS;
@@ -177,8 +178,8 @@ sub definition {
         gradebookTemplateId => {
             tab          => 'display',
             fieldType    => 'template',
-            label        => $i18n->get('Grabebook Report Template'),
-            hoverHelp    => $i18n->get('Grabebook Report Template help'),
+            label        => $i18n->get('Gradebook Report Template'),
+            hoverHelp    => $i18n->get('Gradebook Report Template help'),
             defaultValue => 'PBtmpl0000000000000062',
             namespace    => 'Survey/Gradebook',
         },
@@ -405,15 +406,17 @@ sub responseJSON {
     my $self = shift;
     my ($json, $responseId) = validate_pos(@_, { type => SCALAR | UNDEF, optional => 1 }, { type => SCALAR, optional => 1});
     
-    $responseId ||= $self->responseId;
-     
-    if (!$self->{_responseJSON} || $json) {
-
-        # See if we need to load responseJSON from the database
+    # Mutate if lazy-loading, or json/responseId provided
+    if (!$self->{_responseJSON} || $json || $responseId) {
+        
+        # Either user-provided, or loaded from L<responseId>
+        $responseId ||= $self->responseId;
+        
+        # If json undefined, load responseJSON from the db
         if (!defined $json) {
             $json = $self->session->db->quickScalar( 'select responseJSON from Survey_response where Survey_responseId = ?', [ $responseId ] );
         }
-
+        
         # Instantiate the ResponseJSON instance, and store it
         $self->{_responseJSON} = WebGUI::Asset::Wobject::Survey::ResponseJSON->new( $self->surveyJSON, $json );
     }
@@ -688,7 +691,7 @@ test suite.
 
 sub getAdminConsole {
     my $self = shift;
-    my $ac = $self->SUPER::getAdminConsole;
+    my $ac = WebGUI::AdminConsole->new( $self->session, 'Survey' );
     my $i18n = WebGUI::International->new($self->session, "Asset_Survey");
     $ac->addSubmenuItem($self->session->url->page("func=edit"), WebGUI::International->new($self->session, "WebGUI")->get(575));
     $ac->addSubmenuItem($self->session->url->page("func=editSurvey"), $i18n->get('edit survey'));
@@ -776,6 +779,55 @@ sub hasResponses {
     return $self->session->db->quickScalar(
         'select count(*) from Survey_response where assetId = ? and revisionDate = ?',
         [ $self->getId, $self->get('revisionDate') ] ) > 0;
+}
+
+#-------------------------------------------------------------------
+
+=head2 hasTimedOut ( $limit )
+
+Checks to see whether this survey has timed out, based on the internally stored starting
+time, and the suppied $limit value.
+
+=head3 $limit
+
+How long the user has to take the survey, in minutes. Defaults to the value of C<timeLimit>
+
+=cut
+
+sub hasTimedOut {
+    my $self = shift;
+    my $limit = shift;
+    $limit = $self->get('timeLimit') if not defined $limit;
+    return $limit > 0 && $self->startDate + $limit * 60 < time;
+}
+
+#-------------------------------------------------------------------
+
+=head2 startDate ([ $startDate ])
+
+Mutator for the Response start date, which is stored in a column of 
+the Survey_response table.
+
+=head3 $startDate (optional)
+
+If defined, sets the starting time to $startDate.
+
+=cut
+
+sub startDate {
+    my $self     = shift;
+    my ($startDate) = validate_pos(@_, {type => SCALAR, optional => 1});
+
+    if ( defined $startDate ) {
+        $self->session->db->write('update Survey_response set startDate = ? where Survey_responseId = ?', [$startDate, $self->responseId]);
+        $self->{_startDate} = $startDate;
+    }
+    
+    if (!$self->{_startDate}) {
+        $self->{_startDate} = $self->session->db->quickScalar('select startDate from Survey_response where Survey_responseId = ?', [$self->responseId]);
+    }
+    
+    return $self->{_startDate};
 }
 
 #-------------------------------------------------------------------
@@ -1459,6 +1511,7 @@ sub getResponseDetails {
         $tags->{endDateEpoch}   = $endDateEpoch;
         $tags->{userId}         = $ruserId;
         $tags->{username}       = $rusername;
+        $tags->{responseId}     = $responseId;
     }
     return {
         templateVars => $tags,
@@ -1474,6 +1527,7 @@ sub getResponseDetails {
         restart        => $tags->{restart},
         timeout        => $tags->{timeout},
         timeoutRestart => $tags->{timeoutRestart},
+        responseId     => $tags->{responseId},
     };
 }
 
@@ -1735,7 +1789,7 @@ sub www_loadQuestions {
         $self->session->log->debug('No responseId, surveyEnd');
         return $self->surveyEnd();
     }
-    if ( $self->responseJSON->hasTimedOut( $self->get('timeLimit') ) ) {
+    if ( $self->hasTimedOut ) {
         $self->session->log->debug('Response hasTimedOut, surveyEnd');
         return $self->surveyEnd( { timeout => 1 } );
     }
@@ -1937,7 +1991,7 @@ sub prepareShowSurveyTemplate {
     $section->{showProgress}      = $self->get('showProgress');
     $section->{showTimeLimit}     = $self->get('showTimeLimit');
     $section->{minutesLeft}
-        = int( ( ( $self->responseJSON->startTime() + ( 60 * $self->get('timeLimit') ) ) - time() ) / 60 );
+        = int( ( ( $self->startDate() + ( 60 * $self->get('timeLimit') ) ) - time() ) / 60 );
 
     if(scalar @{$questions} == ($section->{totalQuestions} - $section->{questionsAnswered})){
         $section->{isLastPage} = 1
@@ -2060,6 +2114,7 @@ sub responseId {
         my $takenCount = $self->takenCount( { userId => $userId } );
         if ( $maxResponsesPerUser == 0 || $takenCount < $maxResponsesPerUser ) {
             # Create a new response
+            my $startDate = time;
             $responseId = $self->session->db->setRow(
                 'Survey_response',
                 'Survey_responseId', {
@@ -2067,7 +2122,7 @@ sub responseId {
                     userId            => $userId,
                     ipAddress         => $ip,
                     username          => $user->username,
-                    startDate         => scalar time,
+                    startDate         => $startDate,
                     endDate           => 0,
                     assetId           => $self->getId,
                     revisionDate      => $self->get('revisionDate'),
@@ -2077,6 +2132,7 @@ sub responseId {
 
             # Store the newly created responseId
             $self->{responseId} = $responseId;
+            $self->startDate($startDate);
             
             $self->session->log->debug("Created new Survey response: $responseId for user: $userId for Survey: " . $self->getId);
             
@@ -2161,7 +2217,7 @@ sub canTakeSurvey {
     my $userId              = $self->session->user->userId();
     my $takenCount          = 0;
 
-    if ( $userId == 1 ) {
+    if ( $userId eq 1 ) {
         $takenCount = $self->takenCount( { ipAddress => $ip });
     }
     else {
@@ -2187,9 +2243,9 @@ Returns the Grade Book screen.
 =cut
 
 sub www_viewGradeBook {
-    my $self    = shift;
-    my $db      = $self->session->db;
-    
+    my $self = shift;
+    my $db   = $self->session->db;
+
     return $self->session->privilege->insufficient()
         if !$self->session->user->isInGroup( $self->get('groupToViewReports') );
 
@@ -2197,26 +2253,42 @@ sub www_viewGradeBook {
 
     $self->loadTempReportTable();
 
-    my $paginator = WebGUI::Paginator->new($self->session,$self->getUrl('func=viewGradebook'));
-    $paginator->setDataByQuery('select userId,username,ipAddress,Survey_responseId,startDate,endDate'
-        . ' from Survey_response where assetId='
-        . $db->quote($self->getId)
-        . ' order by username,ipAddress,startDate');
-    my $users = $paginator->getPageData;
+    my $paginator = WebGUI::Paginator->new( $self->session, $self->getUrl('func=viewGradebook') );
+    my $userClause = '';
+    if (my $userId = $self->session->form->process('userId')) {
+        $userClause = ' and userId = ' . $db->quote($userId);
+    }
+    my $quotedAssetId = $db->quote( $self->getId );
+    $paginator->setDataByQuery( <<END_SQL );
+select userId, username, ipAddress, Survey_responseId, startDate, endDate
+from Survey_response 
+where assetId = $quotedAssetId
+$userClause
+order by username, ipAddress, startDate
+END_SQL
+    my $rows = $paginator->getPageData;
 
     $var->{question_count} = $self->surveyJSON->questionCount;
-    
+
     my @responseloop;
-    foreach my $user (@{$users}) {
-        my ($correctCount) = $db->quickArray('select count(*) from Survey_tempReport'
-            . ' where Survey_responseId=? and isCorrect=1',[$user->{Survey_responseId}]);
-        push @responseloop, {
-            # response_url is left out because it looks like Survey doesn't have a viewIndividualSurvey feature
-            # yet.
-            #'response_url'=>$self->getUrl('func=viewIndividualSurvey;responseId='.$user->{Survey_responseId}),
-            'response_user_name'=>($user->{userId} eq '1') ? $user->{ipAddress} : $user->{username},
-            'response_count_correct' => $correctCount,
-            'response_percent' => round(($correctCount/$var->{question_count})*100)
+    foreach my $row ( @{$rows} ) {
+        my ($correctCount)
+            = $db->quickArray(
+            'select count(*) from Survey_tempReport' . ' where Survey_responseId=? and isCorrect=1',
+            [ $row->{Survey_responseId} ] );
+        push @responseloop,
+            {
+            response_feedback_url => $self->getUrl("func=showFeedback;responseId=$row->{Survey_responseId}"),
+            response_id           => $row->{Survey_responseId},
+            response_userId       => $row->{userId},
+            response_ip           => $row->{ip},
+            response_startDate    => $row->{startDate}
+                && WebGUI::DateTime->new( $self->session, $row->{startDate} )->toUserTimeZone,
+            response_endDate => $row->{endDate}
+                && WebGUI::DateTime->new( $self->session, $row->{endDate} )->toUserTimeZone,
+            response_user_name => ( $row->{userId} eq '1' ) ? $row->{ipAddress} : $row->{username},
+            response_count_correct => $correctCount,
+            response_percent       => round( ( $correctCount / $var->{question_count} ) * 100 ),
             };
     }
     $var->{response_loop} = \@responseloop;
@@ -2318,9 +2390,64 @@ sub www_viewStatisticalOverview {
 
 #-------------------------------------------------------------------
 
+=head2 export ( $options )
+
+Triggers the user's browser to download the given content as a file
+
+Accepts the following options:
+
+=over 4
+
+=item content (optional)
+
+The content to return. If not specified, the sql param is used.
+
+=item sql (optional)
+
+An sql string to use to look up content.
+
+=item sqlParams (optional)
+
+An array of sql positional parameters.
+
+=item format
+
+Either C<csv> or C<tab>
+
+=item name
+
+The filename to use for the downloadable content
+
+=back
+
+=cut
+
+sub export {
+    my $self = shift;
+    my %opts = validate(@_, { content => 0, sql => 0, sqlParams => {default => []}, format => { default => 'csv' }, name => 1 });
+    
+    my $format = lc $opts{format};
+    $format = 'csv' unless $format eq 'csv' || $format eq 'tab';
+    
+    # Content is either passed in, or we lookup via SQL query
+    my $content = $opts{content};
+    if (!$content) {
+        
+        # Use the appropriate SQL 'quick' method
+        my $method = $format eq 'csv' ? 'quickCSV' : 'quickTab';
+        $content = $self->session->db->$method( $opts{sql}, $opts{sqlParams} );
+    }
+    
+    my $filename = $self->session->url->escape( $self->get("title") . "_$opts{name}.$format" );
+    $self->session->http->setFilename($filename,"text/$format");
+    return $content;
+}
+
+#-------------------------------------------------------------------
+
 =head2 www_exportSimpleResults ()
 
-Exports transposed results in a tab deliniated file.
+Exports transposed results as CSV (or tabbed depending on the C<format> form param)
 
 =cut
 
@@ -2330,21 +2457,21 @@ sub www_exportSimpleResults {
     return $self->session->privilege->insufficient()
         if !$self->session->user->isInGroup( $self->get('groupToViewReports'));
 
-    $self->loadTempReportTable();
-
-    my $filename = $self->session->url->escape( $self->get('title') . '_results.tab' );
-    my $content
-        = $self->session->db->quickTab(
-        'select * from Survey_tempReport t where t.assetId=? order by t.Survey_responseId, t.order',
-        [ $self->getId() ] );
-    return $self->export( $filename, $content );
+    $self->loadTempReportTable( ignoreRevisionDate => 1 );
+  
+    return $self->export( 
+        sql => 'select * from Survey_tempReport t where t.assetId=? order by t.Survey_responseId, t.order',
+        sqlParams => [ $self->getId() ],
+        format => scalar $self->session->form->process('format'),
+        name => 'simple',
+    );
 }
 
 #-------------------------------------------------------------------
 
 =head2 www_exportTransposedResults ()
 
-Returns transposed results as a tabbed file.
+Returns transposed results as CSV (or tabbed depending on the C<format> form param)
 
 =cut
 
@@ -2353,20 +2480,21 @@ sub www_exportTransposedResults {
     return $self->session->privilege->insufficient()
         if !$self->session->user->isInGroup( $self->get('groupToViewReports') );
 
-    $self->loadTempReportTable();
-
-    my $filename = $self->session->url->escape( $self->get('title') . '_transposedResults.tab' );
-    my $content
-        = $self->session->db->quickTab(
-        'select r.userId, r.username, r.ipAddress, r.startDate, r.endDate, r.isComplete, t.*'
-        . ' from Survey_tempReport t'
-        . ' left join Survey_response r using(Survey_responseId)' 
-        . ' where t.assetId=?'
-        . ' order by r.userId, r.Survey_responseId, t.order',
-        [ $self->getId() ] );
-    return $self->export( $filename, $content );
+    $self->loadTempReportTable( ignoreRevisionDate => 1, );
+    
+    return $self->export( 
+        sql => <<END_SQL,
+select r.userId, r.username, r.ipAddress, r.startDate, r.endDate, r.isComplete, t.*
+from Survey_tempReport t
+left join Survey_response r using(Survey_responseId)
+where t.assetId = ?
+order by r.userId, r.Survey_responseId, t.order
+END_SQL
+        sqlParams => [ $self->getId() ],
+        format => scalar $self->session->form->process('format'),
+        name => 'transposed',
+    );
 }
-
 
 #-------------------------------------------------------------------
 
@@ -2450,78 +2578,86 @@ END_HTML
 
 #-------------------------------------------------------------------
 
-=head2 export($filename,$content)
-
-Exports the data in $content to $filename, then forwards the user to $filename.
-
-=head3 $filename
-
-The name of the file you want exported.
-
-=head3 $content
-
-The data you want exported (CSV, tab, whatever).
-
-=cut
-
-sub export {
-    my $self     = shift;
-    my $filename = shift;
-    $filename =~ s/[^\w\d\.]/_/g;
-    my $content = shift;
-
-    # Create a temporary directory to store files if it doesn't already exist
-    my $store    = WebGUI::Storage->createTemp( $self->session );
-    my $tmpDir   = $store->getPath();
-    my $filepath = $store->getPath($filename);
-    if ( !open TEMP, ">$filepath" ) {
-        return 'Error - Could not open temporary file for writing.  Please use the back button and try again';
-    }
-    print TEMP $content;
-    close TEMP;
-    my $fileurl = $store->getUrl($filename);
-
-    $self->session->http->setRedirect($fileurl);
-
-    return undef;
-}
-
-#-------------------------------------------------------------------
-
 =head2 loadTempReportTable
 
 Loads the responses from the survey into the Survey_tempReport table, so that other or custom reports can be ran against this data.
 
+Accepts the following options:
+
+=over 4
+
+=item ignoreRevisionDate
+
+Normally it only makes sense to compare responses for the current revisionDate (because the Survey structure can change
+between revisions). This flag tells us to ignore response revisionDate.
+
+=back
+
 =cut
 
 sub loadTempReportTable {
-    my $self = shift;
+    my $self         = shift;
+    my %opts = validate(@_, { ignoreRevisionDate => 0 });
 
-    my $refs = $self->session->db->buildArrayRefOfHashRefs( 'select * from Survey_response where assetId = ?',
-        [ $self->getId() ] );
+    # Remove old temp report data
     $self->session->db->write( 'delete from Survey_tempReport where assetId = ?', [ $self->getId() ] );
-    for my $ref (@{$refs}) {
-        $self->responseJSON( undef, $ref->{Survey_responseId} );
-        my $count = 1;
-        for my $q ( @{ $self->responseJSON->returnResponseForReporting() } ) {
+    
+    # Build the sql that will select all responses
+    my $sql = 'select * from Survey_response where assetId = ?';
+    
+    # Mostly it only makes sense to export responses for a single revisionDate (because Survey
+    # structure can change between revisions)
+    $sql .= ' and revisionDate = ' . $self->session->db->quote($self->get('revisionDate')) unless $opts{ignoreRevisionDate};
+    
+    # Populate the temp report table with new data
+    my $refs = $self->session->db->buildArrayRefOfHashRefs( $sql, [ $self->getId() ] );
+    for my $ref ( @{$refs} ) {
+        
+        # Inject the responseJSON
+        $self->responseJSON( $ref->{responseJSON}, $ref->{Survey_responseId} );
+        
+        my $order = 1;
+        for my $q ( @{ $self->responseJSON->responseReport } ) {
             if ( @{ $q->{answers} } == 0 and $q->{comment} =~ /\w/ ) {
                 $self->session->db->write(
-                    'insert into Survey_tempReport VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
-                        $self->getId(),    $ref->{Survey_responseId}, $count++,           $q->{section},
-                        $q->{sectionName}, $q->{question},            $q->{questionName}, $q->{questionComment},
-                        undef,             undef,                     undef,              undef,
-                        undef,             undef,                     undef
+                    'insert into Survey_tempReport VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    [   $self->getId(),               # assetId
+                        $ref->{Survey_responseId},    # Survey_responseId
+                        $order++,                     # order
+                        $q->{section},,               # sectionNumber
+                        $q->{sectionName},            # sectionName
+                        $q->{question},               # questionNumber
+                        $q->{questionName},           # questionName
+                        $q->{questionComment},        # questionComment
+                        undef,
+                        undef,
+                        undef,
+                        undef,
+                        undef,
+                        undef,
+                        undef
                     ]
                 );
                 next;
             }
             for my $a ( @{ $q->{answers} } ) {
                 $self->session->db->write(
-                    'insert into Survey_tempReport VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
-                        $self->getId(),    $ref->{Survey_responseId}, $count++,           $q->{section},
-                        $q->{sectionName}, $q->{question},            $q->{questionName}, $q->{questionComment},
-                        $a->{id},          $a->{value},               $a->{verbatim},      $a->{time},
-                        $a->{isCorrect},   $a->{value},               undef
+                    'insert into Survey_tempReport VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    [   $self->getId(),               # assetId
+                        $ref->{Survey_responseId},    # Survey_responseId
+                        $order++,                     # order
+                        $q->{section},                # sectionNumber
+                        $q->{sectionName},            # sectionName
+                        $q->{question},               # questionNumber
+                        $q->{questionName},           # questionName
+                        $q->{questionComment},        # questionComment
+                        $a->{id},                     # answerNumber
+                        $a->{value},                  # answerValue
+                        $a->{verbatim},               # answerComment
+                        $a->{time},                   # entryDate
+                        $a->{isCorrect},              # isCorrect
+                        $a->{score},                  # value (e.g. answer score)
+                        undef                         # fileStoreageId
                     ]
                 );
             }
@@ -2529,34 +2665,6 @@ sub loadTempReportTable {
     }
     return 1;
 }
-
-#-------------------------------------------------------------------
-
-=head2 www_editDefaultQuestions
-
-Allows a user to edit the *site wide* default multiple choice questions displayed when adding questions to a survey.
-
-=cut
-
-sub www_editDefaultQuestions{
-    my $self = shift;
-    my $warning = shift;
-    my $session = $self->session;
-    my ($output);
-    my $bundleId = $session->form->process("bundleId");
-
-    if($bundleId eq 'new'){
-
-
-
-    }
-
-    if($warning){$output .= "$warning";}
-#    $output .= $tabForm->print;
-    
-
-}
-
 
 #-------------------------------------------------------------------
 
@@ -2570,38 +2678,11 @@ sub www_downloadDefaultQuestionTypes{
     my $self = shift;
     return $self->session->privilege->insufficient()
         if !$self->session->user->isInGroup( $self->get('groupToViewReports') );
+    
     my $content = to_json($self->surveyJSON->{multipleChoiceTypes});
-    return $self->export( "WebGUI-Survey-DefaultQuestionTypes.json", $content );
+    $self->session->http->setFilename('WebGUI-Survey-DefaultQuestionTypes.json', "application/json");
+    return $content;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #-------------------------------------------------------------------
 

@@ -302,25 +302,13 @@ A human readable title for this ad space.
 
 A human readable description for this ad space.
 
-=head4 costPerImpression
-
-A float that represents how much it will cost an advertiser every time an ad is viewed in this ad space.
-
 =head4 minimumImpressions
 
 An integer indicating the minimum number of impressions an advertiser is allowed to purchase.
 
-=head4 costPerClick
-
-A float that represents how much it will cost an advertiser everytime someone clicks on an ad in this ad space.
-
 =head4 minimumClicks
 
 An integer indicating the minimum number of clicks an advertiser is allowed to purchase.
-
-=head4 groupToPurchase
-
-A groupId representing the group allowed to purchase ads directly from the web site.
 
 =head4 width
 
@@ -344,11 +332,8 @@ sub set {
 	$self->{_properties}{title} = exists $properties->{title} ?  $properties->{title}
                                 : $self->{_properties}{title} || "Untitled";
 	$self->{_properties}{description} = exists $properties->{description} ? $properties->{description} : $self->{_properties}{description};
-	$self->{_properties}{costPerImpression} = exists $properties->{costPerImpression} ? $properties->{costPerImpression} : $self->{_properties}{costPerImpression};
-	$self->{_properties}{costPerClick} = exists $properties->{costPerClick} ? $properties->{costPerClick} : $self->{_properties}{costPerClick};
 	$self->{_properties}{minimumImpressions} = $properties->{minimumImpressions} || $self->{_properties}{minimumImpressions};
 	$self->{_properties}{minimumClicks} = $properties->{minimumClicks} || $self->{_properties}{minimumClicks};
-	$self->{_properties}{groupToPurchase} = $properties->{groupToPurchase} || $self->{_properties}{groupToPurchase} || "3";
 	$self->{_properties}{width} = $properties->{width} || $self->{_properties}{width} || "468";
 	$self->{_properties}{height} = $properties->{height} || $self->{_properties}{height} || "60";
 	$self->session->db->setRow("adSpace","adSpaceId",$self->{_properties});

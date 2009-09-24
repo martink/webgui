@@ -20,13 +20,12 @@ use WebGUI::Asset::Wobject::Calendar;
 
 use Test::More;
 use Test::Deep;
+use Data::Dumper;
 
-if (!$ENV{WEBGUI_LIVE}) {
-    plan skip_all => 'No website available';
-}
-else {
-    plan tests => 14; # increment this value for each test you create
-}
+plan skip_all => 'set WEBGUI_LIVE to enable this test'
+    unless $ENV{WEBGUI_LIVE};
+
+plan tests => 14; # increment this value for each test you create
 
 my $session = WebGUI::Test->session;
 
@@ -40,11 +39,10 @@ my $receiver = $home->addChild({
     title     => 'Receiving Calendar',
 });
 
-$session->db->setRow('Calendar_feeds', 'feedId', {
-    feedId   => 'new',
-    assetId  => $receiver->getId,
+$receiver->addFeed({
     url      => $session->url->getSiteURL.$session->url->gateway($sender->getUrl('func=ical')),
     feedType => 'ical',
+    lastUpdated => 'never',
 });
 
 my $dt = WebGUI::DateTime->new($session, time());

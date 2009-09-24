@@ -1,5 +1,19 @@
 package WebGUI::Shop::PayDriver::ITransact;
 
+=head1 LEGAL
+
+ -------------------------------------------------------------------
+  WebGUI is Copyright 2001-2009 Plain Black Corporation.
+ -------------------------------------------------------------------
+  Please read the legal notices (docs/legal.txt) and the license
+  (docs/license.txt) that came with this distribution before using
+  this software.
+ -------------------------------------------------------------------
+  http://www.plainblack.com                     info@plainblack.com
+ -------------------------------------------------------------------
+
+=cut
+
 use strict;
 use XML::Simple;
 use Data::Dumper;
@@ -364,6 +378,8 @@ sub checkRecurringTransaction {
 sub definition {
     my $class       = shift;
     my $session     = shift;
+    WebGUI::Error::InvalidParam->throw(error => q{Must provide a session variable})
+        unless ref $session eq 'WebGUI::Session';
     my $definition  = shift;
 
     my $i18n = WebGUI::International->new($session, 'PayDriver_ITransact');
@@ -410,7 +426,7 @@ sub definition {
 
 #-------------------------------------------------------------------
 
-=head2 doXmlRequest ( xml [ isAdministrative ] )
+=head2 doXmlRequest ( xml, [ isGatewayInterface ] )
 
 Post an xml request to the ITransact backend. Returns a LWP::UserAgent response object.
 
@@ -443,7 +459,7 @@ sub doXmlRequest {
     # Create a request and stuff the xml in it
     my $request = HTTP::Request->new( POST => $xmlTransactionScript );
 	$request->content_type( 'text/xml' );
-	$request->content( $xml );
+	$request->add_content_utf8( $xml );
 
     # Do the request
     my $response = $userAgent->request($request);
@@ -607,7 +623,6 @@ sub processPayment {
 
     # Get the payment definition XML
     my $xml = $self->_generatePaymentRequestXML( $transaction );
-    $session->errorHandler->debug("XML Request: $xml");
 
     # Send the xml to ITransact
     my $response = $self->doXmlRequest( $xml );
@@ -766,8 +781,6 @@ sub www_getCredentials {
         name  => 'zipcode',
         value => $form->process("zipcode") || $addressData->{ code } || $u->profileField('homeZip'),
     });
-    $session->log->warn("form: ". $form->process("country",'country'));
-    $session->log->warn("addressData: ". $addressData->{country});
     $var->{countryField} = WebGUI::Form::country($session, {
         name  => 'country',
         value => ($form->process("country",'country', '') || $addressData->{ country } || $u->profileField("homeCountry") || 'United States of A'),

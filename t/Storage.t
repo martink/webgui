@@ -18,11 +18,13 @@ use WebGUI::Storage;
 use WebGUI::PseudoRequest;
 
 use File::Spec;
+use File::Temp qw/tempdir/;
 use Test::More;
 use Test::Deep;
 use Test::MockObject;
 use Cwd;
 use Data::Dumper;
+use Path::Class::Dir;
 
 my $session = WebGUI::Test->session;
 
@@ -30,7 +32,7 @@ my $cwd = Cwd::cwd();
 
 my ($extensionTests, $fileIconTests) = setupDataDrivenTests($session);
 
-my $numTests = 122; # increment this value for each test you create
+my $numTests = 127; # increment this value for each test you create
 plan tests => $numTests + scalar @{ $extensionTests } + scalar @{ $fileIconTests };
 
 my $uploadDir = $session->config->get('uploadsPath');
@@ -62,11 +64,26 @@ is( $storage1->getLastError, undef, "No errors during path creation");
 
 ####################################################
 #
-# getPathFrag
+# getPathFrag, getDirectoryId, get
 #
 ####################################################
 
-is( $storage1->getPathFrag, '7e/8a/7e8a1b6a', 'pathFrag returns correct value');
+is( $storage1->getPathFrag,    '7e/8a/7e8a1b6a', 'pathFrag returns correct value');
+is( $storage1->getDirectoryId, '7e8a1b6a',       'getDirectoryId returns the last path element');
+
+##Build an old-style GUID storage location
+my $uploadsBase = Path::Class::Dir->new($uploadDir);
+my $newGuid = $session->id->generate();
+my @guidPathParts = (substr($newGuid, 0, 2), substr($newGuid, 2, 2), $newGuid);
+my $guidDir = $uploadsBase->subdir(@guidPathParts);
+$guidDir->mkpath();
+ok(-e $guidDir->stringify, 'created GUID storage location for backwards compatibility testing');
+
+my $guidStorage = WebGUI::Storage->get($session, $newGuid);
+WebGUI::Test->storagesToDelete($guidStorage);
+isa_ok($guidStorage, 'WebGUI::Storage');
+is($guidStorage->getId, $newGuid, 'GUID storage has correct id');
+is($guidStorage->getDirectoryId, $newGuid, '... getDirectoryId');
 
 ####################################################
 #
@@ -304,7 +321,8 @@ cmp_bag($s3copy->getFiles(), [ @filesToCopy ], 'copy: passing explicit variable 
     my $deepDir     = $deepStorage->getPathClassDir();
     my $deepDeepDir = $deepDir->subdir('deep');
     my $errorStr;
-    $deepDeepDir->mkpath(1, undef, { error => \$errorStr } );
+    my @foo = $deepDeepDir->mkpath({ error => \$errorStr } );
+    note explain \@foo;
     $deepStorage->addFileFromScalar('deep/file', 'deep file');
     cmp_bag(
         $deepStorage->getFiles('all'),
@@ -419,7 +437,7 @@ cmp_bag(
     my $deepDir     = $deepStorage->getPathClassDir();
     my $deepDeepDir = $deepDir->subdir('deep');
     my $errorStr;
-    $deepDeepDir->mkpath(1, undef, { error => \$errorStr } );
+    $deepDeepDir->mkpath({ error => \$errorStr } );
     $deepStorage->addFileFromScalar('deep/file', 'deep file');
     cmp_bag(
         $deepStorage->getFiles('all'),
@@ -484,7 +502,7 @@ WebGUI::Test->storagesToDelete($deepStorage);
 my $deepDir     = $deepStorage->getPathClassDir();
 my $deepDeepDir = $deepDir->subdir('deep');
 my $errorStr;
-$deepDeepDir->mkpath(1, undef, { error => \$errorStr } );
+$deepDeepDir->mkpath({ error => \$errorStr } );
 ok(-e $deepDeepDir->stringify, 'created storage directory with a subdirectory for testing');
 
 $deepStorage->setPrivileges(3,3,3);
@@ -502,12 +520,15 @@ is ($privs, "3\n3\n3", '... correct group contents, deep storage subdir');
 #
 ####################################################
 
+my $cdnTestPath      = tempdir();
+my $cdnQueueTestPath = tempdir();
+
 my $cdnCfg = {
     "enabled"       => 1,
-    "url"           => "file:///data/storage",
-    "queuePath"     => "/data/cdnqueue",
-    "syncProgram"   => "cp -r -- '%s' /data/storage/",
-    "deleteProgram" => "rm -r -- '/data/storage/%s' > /dev/null 2>&1"
+    "url"           => "file://$cdnTestPath",
+    "queuePath"     => $cdnQueueTestPath,
+    "syncProgram"   => "cp -r -- '%s' $cdnTestPath/",
+    "deleteProgram" => "rm -r -- '$cdnTestPath/%s' > /dev/null 2>&1"
 };
 my ($addedCdnQ, $addedCdnU);
 $addedCdnQ = mkdir $cdnCfg->{'queuePath'}  unless -e $cdnCfg->{'queuePath'};

@@ -58,8 +58,8 @@ our $I18N = {
 	},
 
 	'image help' => {
-		message => q|The image file that will be displayed on each ad impression.|,
-		lastUpdated => 0,
+		message => q|The image file that will be displayed on each ad impression.  To replace an existing image, simply upload a new one.|,
+		lastUpdated => 1251431251,
 		context => q|help for a form property in the ad editor|
 	},
 
@@ -294,15 +294,35 @@ our $I18N = {
 		lastUpdated => 0,
 	},
 
-        'error heading'  => {
-            message     => q{There was an error with your Ad Space:},
-            lastUpdated => 0,
-        },
+    'error heading'  => {
+        message     => q{There was an error with your Ad Space:},
+        lastUpdated => 0,
+    },
 
-        'error invalid characters' => {
-            message     => q{There are invalid characters in the title field. Please use only letters, numbers, and spaces.},
-            lastUpdated => 0,
-        },
+    'error invalid characters' => {
+        message     => q{There are invalid characters in the title field. Please use only letters, numbers, and spaces.},
+        lastUpdated => 0,
+    },
+
+    'minimum clicks' => {
+        message     => q{Minimum Clicks To Buy.},
+        lastUpdated => 0,
+    },
+
+    'minimum clicks help' => {
+        message     => q{This sets a minimum number of clicks that a user would buy when purchasing an Ad for this AdSpace.},
+        lastUpdated => 0,
+    },
+
+    'minimum impressions' => {
+        message     => q{Minimum Impressions To Buy.},
+        lastUpdated => 0,
+    },
+
+    'minimum impressions help' => {
+        message     => q{This sets a minimum number of impressions that a user would buy when purchasing an Ad for this AdSpace.},
+        lastUpdated => 0,
+    },
 
 };
 

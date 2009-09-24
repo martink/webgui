@@ -12,7 +12,11 @@ package WebGUI::Asset::WikiPage;
 
 use strict;
 use Class::C3;
-use base qw(WebGUI::AssetAspect::Comments WebGUI::Asset);
+use base qw(
+    WebGUI::AssetAspect::Subscribable
+    WebGUI::AssetAspect::Comments 
+    WebGUI::Asset
+);
 use Tie::IxHash;
 use WebGUI::International;
 use WebGUI::Utility;
@@ -121,6 +125,11 @@ sub definition {
 			defaultValue => '',
 			noFormPost => 1,
 			},
+                isFeatured => {
+                    fieldType       => "yesNo",
+                    defaultValue    => 0,
+                    noFormPost      => 1,
+                },
 	    );
 
 	push @$definition,
@@ -201,6 +210,7 @@ sub getEditForm {
 		formContent => WebGUI::Form::HTMLArea($session, { name => 'content', richEditId => $wiki->get('richEditor'), value => $self->get('content') }) ,
 		formSubmit => WebGUI::Form::submit($session, { value => 'Save' }),
 		formProtect => WebGUI::Form::yesNo($session, { name => "isProtected", value=>$self->getValue("isProtected")}),
+                formFeatured => WebGUI::Form::yesNo( $session, { name => 'isFeatured', value=>$self->getValue('isFeatured')}),
         formKeywords => WebGUI::Form::keywords($session, {
             name    => "keywords",
             value   => WebGUI::Keyword->new($session)->getKeywordsForAsset({asset=>$self}),
@@ -232,6 +242,74 @@ sub getEditForm {
         thumbnailSize   => $wiki->get("thumbnailSize"),
         });
 	return $self->processTemplate($var, $wiki->getValue('pageEditTemplateId'));
+}
+
+#-------------------------------------------------------------------
+
+=head2 getSubscriptionTemplate ( )
+
+=cut
+
+sub getSubscriptionTemplate { 
+    my ( $self ) = @_;
+    return $self->getParent->getSubscriptionTemplate;
+}
+
+#-------------------------------------------------------------------
+
+=head2 getTemplateVars ( )
+
+Get the common template vars for this asset
+
+=cut
+
+sub getTemplateVars {
+    my ( $self ) = @_;
+    my $i18n        = WebGUI::International->new($self->session, "Asset_WikiPage");
+    my $wiki        = $self->getWiki;
+    my $owner       = WebGUI::User->new( $self->session, $self->get('ownerUserId') );
+    my $keywords    = WebGUI::Keyword->new($self->session)->getKeywordsForAsset({
+        asset       => $self,
+        asArrayRef  => 1,
+    });
+    my @keywordsLoop = ();
+    foreach my $word (@{$keywords}) {
+        push @keywordsLoop, {
+            keyword => $word,
+            url     => $wiki->getUrl("func=byKeyword;keyword=".$word),
+        };
+    }
+    my $var = {
+        %{ $self->get },
+        url                 => $self->getUrl,
+        keywordsLoop        => \@keywordsLoop,
+        viewLabel           => $i18n->get("viewLabel"),
+        editLabel           => $i18n->get("editLabel"),
+        historyLabel        => $i18n->get("historyLabel"),
+        wikiHomeLabel       => $i18n->get("wikiHomeLabel", "Asset_WikiMaster"),
+        searchLabel         => $i18n->get("searchLabel", "Asset_WikiMaster"),	
+        searchUrl           => $wiki->getUrl("func=search"),
+        recentChangesUrl    => $wiki->getUrl("func=recentChanges"),
+        recentChangesLabel  => $i18n->get("recentChangesLabel", "Asset_WikiMaster"),
+        mostPopularUrl      => $wiki->getUrl("func=mostPopular"),
+        mostPopularLabel    => $i18n->get("mostPopularLabel", "Asset_WikiMaster"),
+        wikiHomeUrl         => $wiki->getUrl,
+        historyUrl          => $self->getUrl("func=getHistory"),
+        editContent         => $self->getEditForm,
+        allowsAttachments   => $wiki->get("allowAttachments"),
+        comments	    => $self->getFormattedComments(),
+        canEdit             => $self->canEdit,
+		isProtected         => $self->isProtected,
+        content             => $wiki->autolinkHtml(
+            $self->scrubContent,
+            {skipTitles => [$self->get('title')]},
+        ),	
+        isSubscribed        => $self->isSubscribed,
+        subscribeUrl        => $self->getSubscribeUrl,
+        unsubscribeUrl      => $self->getUnsubscribeUrl,
+        owner               => $owner->get('alias'),
+    };
+    return $var;
 }
 
 #-------------------------------------------------------------------
@@ -333,6 +411,7 @@ sub processPropertiesFromFormPost {
 
 	if ($wiki->canAdminister) {
 		$properties->{isProtected} = $self->session->form->get("isProtected");
+		$properties->{isFeatured} = $self->session->form->get("isFeatured");
 	}
 
 	$self->update($properties);
@@ -438,43 +517,7 @@ Renders this asset.
 
 sub view {
 	my $self = shift;
-	my $i18n = WebGUI::International->new($self->session, "Asset_WikiPage");
-    my $keywords = WebGUI::Keyword->new($self->session)->getKeywordsForAsset({
-        asset=>$self,
-        asArrayRef=>1,
-        });
-    my $wiki = $self->getWiki;
-    my @keywordsLoop = ();
-    foreach my $word (@{$keywords}) {
-        push(@keywordsLoop, {
-            keyword=>$word,
-            url=>$wiki->getUrl("func=byKeyword;keyword=".$word),
-            });
-    }
-	my $var = {
-        keywordsLoop        => \@keywordsLoop,
-		viewLabel           => $i18n->get("viewLabel"),
-		editLabel           => $i18n->get("editLabel"),
-		historyLabel        => $i18n->get("historyLabel"),
-		wikiHomeLabel       => $i18n->get("wikiHomeLabel", "Asset_WikiMaster"),
-		searchLabel         => $i18n->get("searchLabel", "Asset_WikiMaster"),	
-		searchUrl           => $self->getParent->getUrl("func=search"),
-		recentChangesUrl    => $self->getParent->getUrl("func=recentChanges"),
-		recentChangesLabel  => $i18n->get("recentChangesLabel", "Asset_WikiMaster"),
-		mostPopularUrl      => $self->getParent->getUrl("func=mostPopular"),
-		mostPopularLabel    => $i18n->get("mostPopularLabel", "Asset_WikiMaster"),
-		wikiHomeUrl         => $self->getParent->getUrl,
-		historyUrl          => $self->getUrl("func=getHistory"),
-		editContent         => $self->getEditForm,
-        allowsAttachments   => $self->getWiki->get("allowAttachments"),
-		comments			=> $self->getFormattedComments(),
-        canEdit             => $self->canEdit,
-		content             => $self->getWiki->autolinkHtml(
-            $self->scrubContent,
-            {skipTitles => [$self->get('title')]},
-        ),	
-		};
-	return $self->processTemplate($var, $self->getWiki->get("pageTemplateId"));
+	return $self->processTemplate($self->getTemplateVars, $self->getWiki->get("pageTemplateId"));
 }
 
 #-------------------------------------------------------------------

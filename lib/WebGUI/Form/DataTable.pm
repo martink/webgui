@@ -181,14 +181,15 @@ sub getDefaultValue {
     my $self  = shift;
     my $value = $self->SUPER::getDefaultValue(@_);
 
+    my $i18n = WebGUI::International->new($self->session, 'Form_DataTable');
     if ( !$value ) {
         $value = JSON->new->encode( {
                 columns => [ {
-                        key       => "New Column",
+                        key       => $i18n->get('New Column'),
                         formatter => "text",
                     },
                 ],
-                rows => [ { "New Column" => "Value", }, ],
+                rows => [ { $i18n->get('New Column') => $i18n->get("Value"), }, ],
             }
         );
     }
@@ -351,7 +352,7 @@ sub prepare {
     $style->setLink( $url->extras('yui/build/datatable/assets/skins/sam/datatable.css'),
         { rel => "stylesheet", type => "text/css" } );
     $style->setScript( $url->extras('yui/build/yahoo-dom-event/yahoo-dom-event.js') );
-    $style->setScript( $url->extras('yui/build/element/element-beta.js') );
+    $style->setScript( $url->extras('yui/build/element/element-min.js') );
     $style->setScript( $url->extras('yui/build/dragdrop/dragdrop-min.js') );
     $style->setScript( $url->extras('yui/build/connection/connection-min.js') );
     $style->setScript( $url->extras('yui/build/json/json-min.js') );

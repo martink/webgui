@@ -1113,8 +1113,9 @@ sub new {
 	$self->{_groupId}   = shift;
 	my $override        = shift;
     my $noAdmin         = shift;
+    my $session         = $self->{_session};
 
-    my $cached = $self->{_session}->stow->get("groupObj", { noclone => 1});
+    my $cached = $session->stow->get("groupObj", { noclone => 1});
 	return $cached->{$self->{_groupId}} if ($cached->{$self->{_groupId}});
 
 	bless $self, $class;
@@ -1126,18 +1127,18 @@ sub new {
 	}
     else {
         # Check if the groupId is valid. If not return undef
-        my ($groupExists) = $self->{_session}->db->quickArray('select groupId from groups where groupId=?', [
+        my ($groupExists) = $session->db->quickArray('select groupId from groups where groupId=?', [
             $self->{_groupId},
         ]);
         unless ($groupExists) {
-            $self->{_session}->errorHandler->warn('WebGUI::Group->new called with a non-existant groupId:'
+            $session->errorHandler->warn('WebGUI::Group->new called with a non-existant groupId:'
                 .'['.$self->{_groupId}.']');
             return undef;
         }
     }
 
 	$cached->{$self->{_groupId}} = $self;
-	$self->{_session}->stow->set("groupObj", $cached);
+	$session->stow->set("groupObj", $cached);
 	return $self;
 }
 
@@ -1196,7 +1197,6 @@ sub resetGroupFields {
     }
     ##VersionTags
     $tableCache->{assetVersionTag} = ['groupToUse'];
-    $tableCache->{adSpace}         = ['groupToPurchase'];
     foreach my $tableName (keys %{ $tableCache }) {
         foreach my $fieldName (@{ $tableCache->{$tableName} }) {
             my $sql = sprintf 'UPDATE %s SET %s=3 where %s=?',
@@ -1563,22 +1563,26 @@ sub userGroupExpireDate {
 
 #-------------------------------------------------------------------
 
-=head2 vitalGroup ( $groupId )
+=head2 vitalGroup ( [ $groupId ] )
 
-Class method to check to see if a group is a reserved WebGUI group.  Returns
-true or false.  Placed in here because I found two different lists in two
+Class or object method to check to see if a group is a reserved WebGUI group.
+Returns true or false.  Placed in here because I found two different lists in two
 different areas.
 
 =head3 $groupId
 
-A GUID of the group to check.
+A GUID of the group to check.  Optional if called on an object, and
+will use the object's group ID instead
 
 =cut
 
 sub vitalGroup {
-	my $class   = shift;
-	my $groupId = shift;
+    my $class   = shift;
+    my $groupId = shift;
+    if (! $groupId && ref $class ) {
+        $groupId = $class->getId;
+    }
     return isIn ( $groupId, (1..17), qw/pbgroup000000000000015 pbgroup000000000000016 pbgroup000000000000017 / );
-}	
+}
 
 1;

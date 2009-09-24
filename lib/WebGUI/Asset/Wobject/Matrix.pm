@@ -472,7 +472,8 @@ sub getCompareForm {
     }
     else{
         $maxComparisons = $self->get('maxComparisonsPrivileged');
-    }        
+    }
+    $maxComparisons += 0;
     $form .=  "\n<script type='text/javascript'>\n".
         'var maxComparisons = '.$maxComparisons.";\n".
         "var matrixUrl = '".$self->getUrl."';\n".
@@ -622,31 +623,29 @@ sub view {
 	my $self    = shift;
 	my $session = $self->session;	
     my $db      = $session->db; 
+    my $url     = $session->url;
+    my $style   = $session->style;
+    my $i18n    = WebGUI::International->new($session, 'Asset_Matrix');
 
     # javascript and css files for compare form datatable
-    $self->session->style->setLink($self->session->url->extras('yui/build/datatable/assets/skins/sam/datatable.css'), 
+    $style->setLink($url->extras('yui/build/datatable/assets/skins/sam/datatable.css'), 
         {type =>'text/css', rel=>'stylesheet'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/yahoo-dom-event/yahoo-dom-event.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/json/json-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/connection/connection-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/get/get-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/element/element-beta-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/datasource/datasource-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/datatable/datatable-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/button/button-min.js'), {type =>
-    'text/javascript'});
+
+    $style->setScript($url->extras('yui/build/utilities/utilities.js'),
+        {type => 'text/javascript'});
+    $style->setScript($url->extras('yui/build/json/json-min.js'),
+        {type => 'text/javascript'});
+    $style->setScript($url->extras('yui/build/datasource/datasource-min.js'),
+        {type => 'text/javascript'});
+    $style->setScript($url->extras('yui/build/datatable/datatable-min.js'),
+        {type => 'text/javascript'});
+    $style->setScript($url->extras('yui/build/button/button-min.js'),
+        {type => 'text/javascript'});
     
     my ($varStatistics,$varStatisticsEncoded);
 	my $var = $self->get;
     $var->{listing_loop}            = $self->getListings;
-    $var->{isLoggedIn}              = ($self->session->user->userId ne "1");
+    $var->{isLoggedIn}              = ($session->user->userId ne "1");
     $var->{addMatrixListing_url}    = $self->getUrl('func=add;class=WebGUI::Asset::MatrixListing'); 
     $var->{exportAttributes_url}    = $self->getUrl('func=exportAttributes');
     $var->{listAttributes_url}      = $self->getUrl('func=listAttributes');
@@ -654,15 +653,16 @@ sub view {
     $var->{matrix_url}              = $self->getUrl();
 
     my $maxComparisons;
-    if($self->session->user->isVisitor){
+    if($session->user->isVisitor){
         $maxComparisons = $self->get('maxComparisons');
     }
-    elsif($self->session->user->isInGroup( $self->get("maxComparisonsGroup") )) {
+    elsif($session->user->isInGroup( $self->get("maxComparisonsGroup") )) {
         $maxComparisons = $self->get('maxComparisonsGroupInt');
     }
     else{
         $maxComparisons = $self->get('maxComparisonsPrivileged');
     }
+    $maxComparisons += 0;
     $var->{maxComparisons} = $maxComparisons;
    
     if ($self->canEdit){
@@ -695,7 +695,9 @@ sub view {
         $varStatistics = JSON->new->decode($varStatisticsEncoded);
     }
     else{
-        $varStatistics->{alphanumeric_sortButton}   = "<span id='sortByName'><button type='button'>Sort by name</button></span><br />";
+        $varStatistics->{alphanumeric_sortButton}   = "<span id='sortByName'><button type='button'>"
+                                                    . $i18n->get('Sort by name')
+                                                    . "</button></span><br />";
 
         # Get the MatrixListing with the most views as an object using getLineage.
         my ($bestViews_listing) = @{ $self->getLineage(['descendants'], {
@@ -709,7 +711,9 @@ sub view {
             $varStatistics->{bestViews_url}           = $bestViews_listing->getUrl;
             $varStatistics->{bestViews_count}         = $bestViews_listing->get('views');
             $varStatistics->{bestViews_name}          = $bestViews_listing->get('title');
-            $varStatistics->{bestViews_sortButton}    = "<span id='sortByViews'><button type='button'>Sort by views</button></span><br />";
+            $varStatistics->{bestViews_sortButton}    = "<span id='sortByViews'><button type='button'>"
+                                                      . $i18n->get('Sort by views')
+                                                      . "</button></span><br />";
         }
 
         # Get the MatrixListing with the most compares as an object using getLineage.
@@ -725,7 +729,9 @@ sub view {
             $varStatistics->{bestCompares_url}        = $bestCompares_listing->getUrl;
             $varStatistics->{bestCompares_count}      = $bestCompares_listing->get('compares');
             $varStatistics->{bestCompares_name}       = $bestCompares_listing->get('title');
-            $varStatistics->{bestCompares_sortButton} = "<span id='sortByCompares'><button type='button'>Sort by compares</button></span><br />";
+            $varStatistics->{bestCompares_sortButton} = "<span id='sortByCompares'><button type='button'>"
+                                                      . $i18n->get('Sort by compares')
+                                                      . "</button></span><br />";
         }
 
         # Get the MatrixListing with the most clicks as an object using getLineage.
@@ -740,7 +746,9 @@ sub view {
             $varStatistics->{bestClicks_url}          = $bestClicks_listing->getUrl;
             $varStatistics->{bestClicks_count}        = $bestClicks_listing->get('clicks');
             $varStatistics->{bestClicks_name}         = $bestClicks_listing->get('title');
-            $varStatistics->{bestClicks_sortButton}   = "<span id='sortByClicks'><button type='button'>Sort by clicks</button></span><br />";
+            $varStatistics->{bestClicks_sortButton}   = "<span id='sortByClicks'><button type='button'>"
+                                                      . $i18n->get('Sort by clicks')
+                                                      . "</button></span><br />";
         }
 
         # Get the 5 MatrixListings that were last updated as objects using getLineage.
@@ -759,7 +767,9 @@ sub view {
                         lastUpdated => $self->session->datetime->epochToHuman($lastUpdatedListing->get('lastUpdated'),"%z")
                     });
         }
-        $varStatistics->{lastUpdated_sortButton}  = "<span id='sortByUpdated'><button type='button'>Sort by updated</button></span><br />";
+        $varStatistics->{lastUpdated_sortButton}  = "<span id='sortByUpdated'><button type='button'>"
+                                                  . $i18n->get('Sort by updated')
+                                                  . "</button></span><br />";
 
         # For each category, get the MatrixListings with the best ratings.
 
@@ -855,6 +865,9 @@ sub www_compare {
 
     my $self        = shift;
     my $var         = $self->get;
+    my $session     = $self->session;
+    my $style       = $session->style;
+    my $url         = $session->url;
     my @listingIds  = @_;
     my @responseFields;
 
@@ -862,33 +875,23 @@ sub www_compare {
         @listingIds = $self->session->form->checkList("listingId");
     }
 
-    $self->session->style->setScript($self->session->url->extras('yui/build/yahoo/yahoo-min.js'),
+    $style->setScript($url->extras('yui/build/utilities/utilities.js'),
         {type => 'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/dom/dom-min.js'),
+    $style->setScript($url->extras('yui/build/json/json-min.js'),
         {type => 'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/event/event-min.js'),
-        {type => 'text/javascript'});    
-    $self->session->style->setScript($self->session->url->extras('yui/build/json/json-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/connection/connection-min.js'), 
+    $style->setScript($url->extras('yui/build/datasource/datasource-min.js'),
         {type => 'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/get/get-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/element/element-beta-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/datasource/datasource-min.js'),
-    {type => 'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/datatable/datatable-min.js'),
-    {type =>'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/button/button-min.js'),
-    {type =>'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/container/container-min.js'),
-    {type =>'text/javascript'});
-    $self->session->style->setLink($self->session->url->extras('yui/build/datatable/assets/skins/sam/datatable.css'),
+    $style->setScript($url->extras('yui/build/datatable/datatable-min.js'),
+        {type =>'text/javascript'});
+    $style->setScript($url->extras('yui/build/button/button-min.js'),
+        {type =>'text/javascript'});
+    $style->setScript($url->extras('yui/build/container/container-min.js'),
+        {type =>'text/javascript'});
+    $style->setLink($url->extras('yui/build/datatable/assets/skins/sam/datatable.css'),
         {type =>'text/css', rel=>'stylesheet'});
-    $self->session->style->setScript($self->session->url->extras('hoverhelp.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setLink($self->session->url->extras('hoverhelp.css'),
+    $style->setScript($url->extras('hoverhelp.js'),
+        {type => 'text/javascript'});
+    $style->setLink($url->extras('hoverhelp.css'),
         {type =>'text/css', rel=>'stylesheet'});
 
     my $maxComparisons;
@@ -901,6 +904,7 @@ sub www_compare {
     else{
         $maxComparisons = $self->get('maxComparisonsPrivileged');
     }
+    $maxComparisons += 0;
 
     foreach my $listingId (@listingIds){
         my $listingId_safe = $listingId;
@@ -1149,6 +1153,7 @@ sub www_getCompareFormData {
     my @listingIds = $session->form->checkList("listingId");
     
     $session->http->setMimeType("application/json");
+    my $db = $session->db;
 
     my (@searchParams,@searchParams_sorted,@searchParamList,$searchParamList);
     if($form->process("search")){
@@ -1161,8 +1166,23 @@ sub www_getCompareFormData {
                 $attributeId =~ s/^search_//;
                 $attributeId =~ s/_____/-/g;
                 $parameter->{attributeId} = $attributeId;
-                push(@searchParamList,'"'.$parameter->{attributeId}.'"');
-                push(@searchParams,$parameter);
+                push(@searchParamList,  $db->quote($parameter->{attributeId}) );
+                push(@searchParams,     $parameter);
+            }
+        }
+        if (! scalar @searchParamList) {
+            ##Use defaults for all form values
+            foreach my $category (keys %{$self->getCategories}) {
+                my $attributes = $db->read("select * from Matrix_attribute where category =? and assetId = ?",
+                    [$category,$self->getId]);
+                while (my $attribute = $attributes->hashRef) {
+                    push @searchParamList, $db->quote($attribute->{attributeId});
+                    push @searchParams, {
+                        name        => $attribute->{name},
+                        value       => $attribute->{defaultValue},
+                        attributeId => $attribute->{attributeId},
+                    };
+                }
             }
         }
         $searchParamList        = join(',',@searchParamList);
@@ -1170,9 +1190,9 @@ sub www_getCompareFormData {
     }
 
     my @results;
-    if($form->process("search")){
-        if ($searchParamList){
-            foreach my $result (@{$self->getListings}) {
+    if($form->process("search")) {
+        if ($searchParamList) {
+            RESULT: foreach my $result (@{$self->getListings}) {
                 my $matrixListing_attributes = $session->db->buildHashRefOfHashRefs("
                             select value, fieldType, attributeId from Matrix_attribute
                             left join MatrixListing_attribute as listing using(attributeId)
@@ -1195,17 +1215,18 @@ sub www_getCompareFormData {
                         }
                 }
                 $result->{assetId}  =~ s/-/_____/g;
-                push @results, $result;
+                push @results, $result if $result->{checked} eq 'checked';
             }
         }
-        else{   
+        else {   
             foreach my $result (@{$self->getListings}) {
                 $result->{checked} = 'checked';
                 $result->{assetId}  =~ s/-/_____/g;
                 push @results, $result;
             }
         }
-    }else{
+    }
+    else {
         foreach my $result (@{$self->getListings}) {
             $result->{assetId}  =~ s/-/_____/g;
             if(WebGUI::Utility::isIn($result->{assetId},@listingIds)){
@@ -1345,19 +1366,24 @@ sub www_listAttributes {
     
     return $session->privilege->insufficient() unless($self->canEdit);
     
-    my $i18n = WebGUI::International->new($session,'Asset_Matrix');
-    my $output = "<br /><a href='".$self->getUrl("func=editAttribute;attributeId=new")."'>"
-                .$i18n->get('add attribute label')."</a><br /><br />";
-    
+    my $i18n       = WebGUI::International->new($session,'Asset_Matrix');
+    my $console    = $self->getAdminConsole();
     my $attributes = $session->db->read("select attributeId, name from Matrix_attribute where assetId=? order by name"
         ,[$self->getId]);
+    my $output = '';
     while (my $attribute = $attributes->hashRef) {
-        $output .= $session->icon->delete("func=deleteAttribute;attributeId=".$attribute->{attributeId}
-            , $self->getUrl,$i18n->get("delete attribute confirm message"))
-            .$session->icon->edit("func=editAttribute;attributeId=".$attribute->{attributeId})
-            .' '.$attribute->{name}."<br />\n";
+        $output .= $session->icon->delete(
+                       "func=deleteAttribute;attributeId=".$attribute->{attributeId},
+                       $self->getUrl,$i18n->get("delete attribute confirm message")
+                   )
+                . $session->icon->edit("func=editAttribute;attributeId=".$attribute->{attributeId})
+                . ' '
+                . $attribute->{name}
+                ."<br />\n";
     }
-    return $self->getAdminConsole->render($output, $i18n->get('list attributes title'));
+    $console->addSubmenuItem($self->getUrl("func=editAttribute;attributeId=new"), $i18n->get('add attribute label'));
+    $console->addSubmenuItem($self->getUrl, $i18n->get('Return to Matrix'));
+    return $console->render($output, $i18n->get('list attributes title'));
 }
 
 #-------------------------------------------------------------------
@@ -1372,36 +1398,29 @@ sub www_search {
 
     my $self    = shift;
     my $var     = $self->get;
-    my $db      = $self->session->db;
+    my $session = $self->session;
+    my $db      = $session->db;
+    my $url     = $session->url;
+    my $style   = $session->style;
     
     $var->{compareForm}     = $self->getCompareForm;
-    $self->session->style->setScript($self->session->url->extras('yui/build/yahoo/yahoo-min.js'),
+    $style->setScript($url->extras('yui/build/utilities/utilities.js'),
         {type => 'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/dom/dom-min.js'),
+    $style->setScript($url->extras('yui/build/json/json-min.js'),
         {type => 'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/event/event-min.js'),
+    $style->setScript($url->extras('yui/build/datasource/datasource-min.js'),
         {type => 'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/json/json-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/connection/connection-min.js'),
-        {type => 'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/get/get-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/element/element-beta-min.js'), {type =>
-    'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/datasource/datasource-min.js'),
-    {type => 'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/datatable/datatable-min.js'),
-    {type =>'text/javascript'});
-    $self->session->style->setScript($self->session->url->extras('yui/build/button/button-min.js'),
-    {type =>'text/javascript'});
-    $self->session->style->setLink($self->session->url->extras('yui/build/datatable/assets/skins/sam/datatable.css'),
+    $style->setScript($url->extras('yui/build/datatable/datatable-min.js'),
+        {type =>'text/javascript'});
+    $style->setScript($url->extras('yui/build/button/button-min.js'),
+        {type =>'text/javascript'});
+    $style->setLink($url->extras('yui/build/datatable/assets/skins/sam/datatable.css'),
         {type =>'text/css', rel=>'stylesheet'});
 
     foreach my $category (keys %{$self->getCategories}) {
         my $attributes;
         my @attribute_loop;
-        my $categoryLoopName = $self->session->url->urlize($category)."_loop";
+        my $categoryLoopName = $url->urlize($category)."_loop";
         $attributes = $db->read("select * from Matrix_attribute where category =? and assetId = ?",
             [$category,$self->getId]);
         while (my $attribute = $attributes->hashRef) {

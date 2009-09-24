@@ -1,4 +1,211 @@
+7.8.1
+ - fixed: Wikis broken by 7.8.0 upgrade
+ - fixed #11024: In/Out Board Busted
+ - fixed #11025: Yo dudely in Wiki Keyword Search Template
+ - fixed #11027: trash warning but no trash-limbo warning
+ - fixed #11031: AssetProxy refering to trash-limbo asset
+ - fixed #11028: IOB: Not choosing status causes Problem With Request
+ - fixed #11029: enableStreamingUploads
+
+7.8.0
+ - upgraded YUI to 2.8.0r4
+ - fixed #10998: wiki page locked?
+ - fixed #10862: Version tag contents page
+ - added Subscribable AssetAspect to Wiki
+ - added direct value access in DataForm list view
+ - fixed #11003: Subscribable AssetAspect: no i18n
+ - fixed #11004: Subscribable AssetAspect: handling the subscription group
+ - fixed #10029: Account CSS rule scoping, round #2.
+ - fixed #11012: Code editor corrupts JS
+ - fixed #11019: Ctrl-A blinks and deletes code in Code Editor
+
+7.7.20
+ - fixed #10982: Survey menu options appearing twice
+ - fixed #10890: Story Manager: pagination broken for keywords
+ - fixed #10856: no paginate in wiki keyword search 
+ - fixed #10877: getProfileUrl() broken
+ - fixed #10878: Template issues in 7.7.19
+ - fixed #10844: Ad Sales: No template variable Help
+ - fixed #10873: Code editor breaks CSS comments
+ - fixed #10884: EMS Lookup Registrant problem
+ - fixed #10883: Recover Password / Auth::WebGUI /getSiteUrl
+ - fixed #10892: In/Out Board
+ - fixed #10893: Code editor uses element-min.js
+ - fixed #10891: Asset manager JSON feed has macros processed
+ - fixed #10900: Matrix: Product Listing template
+ - fixed #10902: Shelf asset is whiny
+ - fixed #10879: Collaboration System Thread lose attachments
+ - fixed #10876: EMS Schedule displaying wrong dates for ticket events
+ - fixed #10915: StoryManager: Carousel clips content
+ - fixed #10907: profiles viewable by everybody
+ - fixed #10967: Using a round bracket (parenthesis) in a macro
+ - added custom box size to USPS driver, priority service
+ - fixed #10919: is visitor or is not visitor??
+ - fixed #10920: addUser or addGroup?
+ - fixed #10921: different tags - same message
+ - fixed #10922: double tags
+ - fixed #10923: Typo in i18n
+ - fixed #10925: Wrong message in i18n
+ - relabel Help in the Admin Console to Template Help
+ - fixed #10928: EMS Print Ticket -- Time not processed for timezone
+ - fixed #10889: Old Matrixs break for Admin users
+ - fixed #10939: Commit with Approval workflow does not show confirmation screen
+ - fixed #10943: ThingyRecord JS Broken
+ - fixed #10941: New user profile fields with unfortunate names
+ - fixed #10955: Story Manager: unable to import packages
+ - fixed #10970: Newsletter Asset: no subscribe link
+ - fixed #10953: SendNewsletters Activity: Invalid template variable
+ - fixed #10913: User profiles: Impossible to delete field contents
+ - fixed #10929: EMS Ticket Start Date Sort
+ - fixed #10885: Code Editor breaks Javascript comments
+ - fixed #10991: Calendar: bug in Display tab
+ - fixed #10987: EMS Schedule -- No Permission Check
+ - fixed #10924: Calendar event in last day of month does not display in month/day view
+ - fixed #10954: DataForm fails silently
+ - fixed #10950: Thingy
+ - fixed #10976: Form::Date not internationalized /DateTime::setToEpoch
+ - fixed #11005: calendar feed workflow
+ - fixed #11008: Test::Class
+ - fixed #10990: Survey: View Transposed Results not working
+ - fixed #11022: Deleting user shows "TRUE" prompt
+
+7.7.19
+ - fixed #10838: Forwarded forum post email to new CS adds reply to original thread
+ - fixed #10872: Purging an asset leaves old version tags
+ - fixed #10867: EMS: can't set Ticket time
+ - fixed #10855: Bug in submitting data to ITransact
+ - fixed #10868: EMS Schedule screen won't display
+ - fixed #10857: Wrong entry i18n: Asset_TimeTracking.pm
+ - fixed #10839: Ad Sales: Uploaded Images Disappear
+ - fixed #10851: Search Template Pagination
+ - fixed #10850: Unable to check out with Sales Ad asset
+ - fixed #10845: Shop 'Who can manage' denied access
+ - fixed #10849: Shop: Bad behavior with no shipping drivers
+ - fixed #10843: Ad Sales: how many do I have to buy?
+ - fixed #10835: Ad Sales: Ad Space field not user-friendly
+ - fixed #10841: Ad Sales: hover help spelling error
+ - fixed #10833: Calendar feeds not versioned, not duplicated
+ - fixed #10831: Graphing tab in Poll is not i18n'ed
+ - fixed #10829: Extra field in Poll Property tab
+ - refactored out JSON collateral module, to use with any module in WebGUI.
+ - fixed #10825: Text and MediumText fields should be LongText
+ - fixed #10808: Ask user about using rich edit option causes error in IE6
+ - fixed #10822: spectre pid sucks
+ - fixed #10817: Datatable not internationalized
+ - fixed #10816: Minor Capitalization Issue
+ - fixed #10814: matrix translations
+ - fixed Survey reporting of simple/transported results to csv/tab
+ - fixed #10797: searching non-ascii-characters (e.g. wiki), part 2
+ - fixed #10830: Pie chart broken (Martin Kamerbeek / Oqapi)
+
+7.7.18
+ - fixed #10801: Payment Methods: can select a blank method
+ - fixed #10511: Carousel cutting off edge of photo
+ - fixed #10804: EMS Schedule Screen broken
+ - fixed: Logging errors when getting the list of available driver classes.
+ - fixed #10797: Unable to search for non-ASCII text
+ - fixed #10800: Ogone payment driver typo
+ - fixed #10799: Shop: Ogone payment driver- typo
+ - fixed #10798: Couple of typos in Shop EU Tax Driver screen
+ - fixed #10795: Copy and edit template give error
+ - fixed #10788: Thread rating calculate during post delete/restore
+ - will now respect X-Forwarded-Proto header
+ - no longer need special Apache configuration to handle SSLPROXY header
+ - fixed semi-rare memory leak in getLineage
+ - fixed #10674: CDN URLs are cached across HTTP/HTTPS accesses
+ - fixed: Copied assets don't always get URL extensions added
+ - fixed #10789: Inbox message states not deleted when a user is deleted
+ - fixed #10790: Data Form doesn't always auto-commit version tags
+ - fixed #10739: Textarea and Codearea resize don't work in IE or Webkit browsers
+ - fixed #10552: Map: Editing map properties resets zoom level to 0
+ - fixed #10758: CS #replies does not get updated after post restore from trash (Bart Jol / Procolix)
+ - fixed #10781: User Profile Editable/Required gotcha
+ - fixed #10786: Matrix navigation: search screen to view screen
+ - fixed #10766: Matrix search: search dropdowns do not match what is displayed when search form opens.
+ - fixed #10783: Inbox Copy Sender broken
+ - fixed #10782: Send Message friend_wholeName template var
+ - fixed #10778: Matrix navigation: list attributes
+ - fixed #10776: i18n AuthLDAP::7 description 
+ - fixed #10775: i18n AuthLDAP::6 description
+ - fixed #10774: i18n Asset::Storyarchive tag asset url
+ - fixed #10657: Story Topic: delete story displays failsafe
+ - fixed SMS/Email notification handling (Patrick Donelan, SDH Consulting)
+ - fixed #10624: map template problem with floats
+ - fixed #10793: Map->Add Point photo field missing
+ - fixed #10625: Map point no save button
+ - fixed #10639: Map: Can't edit or delete points
+ - fixed #10640: Map: points not working correctly
+ - fixed Codearea editor to work a lot better and be more compatible
+
+7.7.17
+ - fixed #10697: Story: Image crowds text
+ - fixed #10655: Story: can't delete photos
+ - fixed #10769: No default privacy setting for new User profile fields
+ - fixed #10731: i18n Translation for js-based items in Matrix
+ - fixed #10762: testCodebase only runs properly from within the bin directory
+ - fixed #10765: Matrix displays all products when searching
+ - fixed #10764: Matrix i18n: hitting compare button says I have 1 item selected.
+ - fixed #10763: Matrix: Search button doesn't work.
+ - fixed #10761: Two i18n issues on LDAP page
+ - fixed #10750: Story Manager - Save and add another photo
+ - fixed i18n message for delete assets doesn't mention children.
+ - fixed #10752: Missing SQL Report download group default
+ - fixed: #9595: Gallery layout corruption with old browsers
+ - fixed #10753: Admin Bar will only display 1 title at a time
+ - fixed #10751: Only users in Content Managers group can make Shortcuts
+ - fixed #10279: Some columns still latin1 after upgrade to 7.5.40
+ - fixed #10748: In-store credit not reported correctly in email
+ - fixed #10746: SQL queriy is improper for MySQL compliant query
+ - fixed: Existing ThingyRecords are broken after upgrade
+ - fixed: ThingyRecords cannot be purged
+ - fixed #10744: Shop quantity bug in Cart
+ - fixed #10738: Events do not revision their storage locations
+ - fixed #10724: gotcha.txt for 7.7.17 enhanced
+ - fixed #10316: Cannot view pending version tags
+ - fixed #10710: testEnvironment 7.6.33
+ - fixed #9777: Cursor disappears in non-Rich Editor window
+ - fixed LDAP labels were made more consistent with typical usage.
+ - fixed #10667: cannot change size of template editor
+ - fixed #10654: Story Archive: Search not working properly
+ - fixed #10692: Unprivileged users can stop spectre
+ - fixed #10720: Calendar iCal dates can exceed the number of days in a month
+ - fixed #9850: Calendar Import Incorrect
+ - fixed search indexer concatenates keywords to content.
+ - fixed Index Story fields for Search (headline, subtitle, location, byline, highlights, story)
+ - fixed #10619: Pagination macro
+ - fixed #10596: Dates in calendar wrong offset
+ - fixed #10698: hard coded root paths in account templates
+ - fixed #10700: Default My Sales template needs i18n
+ - fixed #10702: Product displays empty brochure, warranty, manual fields
+ - fixed #10704: Commit version tag from AdminBar is not working
+ - fixed #10510: Product Thumbnails overlap Controls
+ - fixed #10705: 7.7.2 upgrade script (sometimes) removes a table that the 7.7.7 upgrade script assumes is present
+ - fixed #10706: FriendManager Style/Layout template options
+ - fixed #10707: i18n Account_FriendManager::manageUrl
+ - fixed #9962: gallery thumbnail view: JS problem in IE7
+ - fixed #10713: i18n Asset_StoryArchive::asset url
+ - fixed a bug where the textarea (based) form plugins would put multiple identical style tags in head in some cases, which caused javascript errors in IE. ( Martin Kamerbeek / Oqapi )
+ - fixed #10714: i18n Asset_Survey::Grabebook Report Template and Asset_Survey::Grabebook Report Template help
+ - fixed #10717: i18n Asset_Survey::recordedAnswer and Asset_Survey::recorded answer description
+ - fixed #10716: i18n Asset_Survey::questions on section page descriptio
+ - fixed #10715: i18n Asset_Survey::showProgress 
+ - fixed #10721: Invalid/Missing Style TemplateIds in use
+ - fixed #10029: Account CSS rule scoping
+ - fixed #10641: Matrix Asset - Compare/Search buttons broken in Opera
+ - fixed #10723: RSS Feed Error in Gallery
+ - fixed Survey response startDate stored twice (Patrick Donelan, SDH Consulting)
+ - fixed Survey ExpireIncompleteSurveyResponses Workflow Activity not enabled (Patrick Donelan, SDH Consulting)
+ - fixed #10689: Version Tag Modes (Henry Tang, Long Term Results B.V.)
+ - fixed #10733: viewing pending version tags
+ - added Survey JSON performance warning for people with non-wre-standard JSON modules/versions (Patrick Donelan, SDH Consulting)
+ - rfe #10423: Provide a way to access the instance of the thing that was added, modified, or deleted via workflow. (Eric Kennedy)
+ - Templates can now return a JSONified version of their params hash based on
+   requested Accept headers ( Martin Kamerbeek / Oqapi )
+ - fixed #10743: Inbox Rich Editor selection not saved (Eric Kennedy)
+ - fixed #10771: setIsPublic tries to use string as arrayref
+
 7.7.16
+ - fixed #10590: Session::DateTime->secondsToInterval doesn't allow 7 weeks
  - Fix template not found diagnostics.
  - fixed #10665: Navigations with old templates still in 7.7.16
  - fixed #10662: Manage Clipboard / delete item
@@ -24,6 +231,13 @@
  - fixed #10685: i18n Asset_StoryTopic::rssUrl 
  - fixed #10686: Can't access Database Links
  - fixed #10650: Unflatten WebGUI storage locations
+ - fixed #10664: ThingyRecord disappeared... sort of
+ - fixed #10687: i18n Asset_Product::buy_form_options
+ - fixed #10651: Dashboard Content positions
+ - fixed #10695: Adding a new article creates a new version tag
+ - fixed #10693: double titels in help for Story Archive view template
+ - fixed Story Archive sub-folders should not use the failsafe style.
+ - fixed #10617: synchToCdn.pl misses many files (Wes Morgan, Public Interest Network)
 
 7.7.15
  - fixed #10629: WebGUI::ProfileField create new field bug
