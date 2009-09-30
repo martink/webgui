@@ -7,7 +7,7 @@ use Class::InsideOut qw{ :std };
 use WebGUI::Pluggable;
 use Data::Dumper;
 use WebGUI::Image::Font;
-
+use WebGUI::Graphics::Palette;
 
 use base qw{ WebGUI::Chart };
 
@@ -64,7 +64,7 @@ sub _applyConfiguration {
         $self->axis->addLabels( $labelset, $axis++ );
     }
 
-    my $font = WebGUI::Image::Font->new( $session, $self->get('font') );
+    my $font = WebGUI::Image::Font->new( $session, $self->get('fontId') );
     my $fontFile = $font->getFile;
     $self->axis->set({
         titleFont   => $fontFile,
@@ -81,12 +81,40 @@ sub definition {
 
     my $fonts = $session->db->buildHashRef('select fontId, name from imageFont');
 
+    my $fontImages = {};
+    my $fontOptions = {};
+    my $it = WebGUI::Graphics::Font->getAllIterator( $session );
+    while ( my $font = $it->() ) {
+        $fontImages->{ $font->getId }   = '<img border="0" src="' . $font->getPreviewUrl . '" />';
+        $fontOptions->{ $font->getId }  = $font->get('name');
+    }
+    my $paletteImages = {};
+    my $paletteOptions = {};
+    $it = WebGUI::Graphics::Palette->getAllIterator( $session );
+    while ( my $palette = $it->() ) {
+        $paletteImages->{ $palette->getId } = '<img border="0" src="' . $palette->getPreviewUrl . '" />';
+        $paletteOptions->{ $palette->getId } = $palette->crud->get('name');
+    }
+
+
     tie my %properties, 'Tie::IxHash', (
-        font => {
-            fieldType       => 'font',
+        fontId => {
+            fieldType       => 'HTMLSelectBox',
             label           => 'Font',
-#            options         => $fonts,
+            options         => $fontOptions,
+            display         => $fontImages,
         },
+        paletteId => {
+            fieldType       => 'HTMLSelectBox',
+            label           => 'Palette',
+            options         => $paletteOptions,
+            display         => $paletteImages,
+        },
+#        paletteId => {
+#            fieldType       => 'selectBox',
+#            label           => 'Palette',
+#            options         => WebGUI::Graphics::Palette->getPaletteList( $session ),
+#        },
         width => {
             fieldType       => 'integer',
             label           => 'Width (px)',
@@ -149,6 +177,10 @@ sub draw {
     foreach my $data (@{ $self->datasets }) {
         $self->chart->dataset->addDataset( $data->[0], $data->[1] );
     }
+
+    # Set the palette
+    my $palette = WebGUI::Graphics::Palette->new( $self->session, $self->get('paletteId') );
+    $self->chart->setPalette( $palette ) if $palette;
 
     $self->axis->addChart( $self->chart );
     $self->axis->draw;

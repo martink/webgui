@@ -6,6 +6,7 @@ use Class::InsideOut qw{ :std };
 use WebGUI::Pluggable;
 use JSON qw{ to_json };
 use Data::Dumper;
+use Carp;
 
 readonly datasets   => my %datasets;
 readonly session    => my %session;
@@ -87,7 +88,7 @@ sub get {
     if ($key) {
         return $parameters->{ $key } if exists $parameters->{ $key };
 
-        die "WG::Chart: tried to get invalid key [$key]";
+        confess "agjhasgdagasjgWG::Chart: tried to get invalid key [$key]";
     }
     
     return { %{ $parameters } };

@@ -47,7 +47,7 @@ sub _applyConfiguration {
 
     $self->SUPER::_applyConfiguration( @_ );
 
-    my $font = WebGUI::Image::Font->new( $session, $self->get('font') );
+    my $font = WebGUI::Image::Font->new( $session, $self->get('fontId') );
     my $fontFile = $font->getFile;
     $self->axis->set({
         xTitleFont      => $fontFile,
