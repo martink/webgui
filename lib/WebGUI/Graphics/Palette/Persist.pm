@@ -17,6 +17,10 @@ sub crud_definition {
         fieldType   => 'text',
         label       => 'Name',
     };
+    $definition->{ properties   }->{ previewStorage } = {
+        fieldType   => 'hidden',
+        noFormPost  => 1,
+    };
       
     return $definition;
 }

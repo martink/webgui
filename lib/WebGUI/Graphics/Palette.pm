@@ -69,11 +69,50 @@ sub delete {
 }
 
 #-------------------------------------------------------------------
+sub getAllIterator {
+    my $class   = shift;
+    my $session = shift;
+
+    my $it = WebGUI::Graphics::Palette::Persist->getAllIterator( $session );
+
+    my $wrapper = sub {
+        my $persist = $it->();
+        return undef unless $persist;
+
+        return $class->new( $session, $persist->getId );
+    };
+
+    return $wrapper;
+}
+
+#-------------------------------------------------------------------
 sub getId {
     my $self = shift;
 
     return $self->crud->getId;
 }
+
+#-------------------------------------------------------------------
+sub getPaletteList {
+    my $class   = shift;
+    my $session = shift;
+
+    tie my %palettes, 'Tie::IxHash';
+
+    my $it = WebGUI::Graphics::Palette::Persist->getAllIterator( $session );
+    while ( my $palette = $it->() ) {
+        $palettes{ $palette->getId } = $palette->get('name');
+    }
+
+    return \%palettes;
+}
+
+sub getPreviewUrl {
+    my $self = shift;
+
+    my $storage= $self->getStorage;
+    return $storage->getUrl( '.preview.png' );
+};
 
 #-------------------------------------------------------------------
 sub getStorage {
@@ -108,13 +147,11 @@ sub generatePreview {
     $image->Set(size => $width .'x'. $height);
     $image->ReadImage('xc:white');
 
-
     my $x1 = $borderOffset;
     my $y1 = $borderOffset;
     foreach my $color (@{$self->getColorsInPalette}) {
         my $x2 = $x1 + $blockWidth;
         my $y2 = $y1 + $blockHeight;
-$self->session->log->warn( '['.$color->getFillColor .']['. $color->getStrokeColor . ']');
 
         $image->Draw(
             primitive   => 'rectangle',
@@ -145,9 +182,11 @@ sub new {
     # Load colors into palette
     my $iterator = WebGUI::Graphics::Palette::Color->getAllIterator( $session, { sequenceKeyValue => $paletteId } );
     while ( my $color = $iterator->() ) {
-        $self->addColor( Chart::Magick::Color->new( {
+        my $col = Chart::Magick::Color->new( {
             map { $_ => $color->get( $_ ) } qw{ fillTriplet fillAlpha strokeTriplet strokeAlpha }
-        } ) );
+        } );
+
+        $self->addColor( $col );
     }
 
     return $self;
@@ -249,8 +288,8 @@ sub www_edit {
 			$output .= $icon->moveUp( "graphics=palette;method=promoteColor;paletteId=$paletteId;colorIndex=$index" );
 			$output .= $icon->moveDown( "graphics=palette;method=demoteColor;paletteId=$paletteId;colorIndex=$index" );
 			$output .= '</td>';
-			$output .= '<td width="30" border="1" height="30" bgcolor="'. $color->fillTriplet   .'"></td>';
-			$output .= '<td width="30" border="1" height="30" bgcolor="'. $color->strokeTriplet .'"></td>';
+			$output .= '<td width="30" border="1" height="30" bgcolor="#'. $color->fillTriplet   .'"></td>';
+			$output .= '<td width="30" border="1" height="30" bgcolor="#'. $color->strokeTriplet .'"></td>';
 			$output .= '</tr>';
 
             $index++;
