@@ -448,7 +448,7 @@ sub www_listGraphicsOptions {
 
 	my $i18n = WebGUI::International->new($session, 'Graphics');	
 	
-	$output .= '<a href="'.$session->url->page('op=listPalettes').'">'.$i18n->get('manage palettes').'</a><br />';
+	$output .= '<a href="'.$session->url->page('graphics=palette').'">'.$i18n->get('manage palettes').'</a><br />';
 	$output .= '<a href="'.$session->url->page('graphics=font').'">'.$i18n->get('manage fonts').'</a><br />';
 
 	return _submenu($session, $output);
