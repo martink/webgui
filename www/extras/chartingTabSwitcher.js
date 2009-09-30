@@ -1,3 +1,9 @@
+// Initialize namespace
+if (typeof WebGUI == "undefined") {
+    var WebGUI = {};
+}
+
+
 WebGUI.ChartFormSwitcher = function ( selectElem, constiuents ) {
     this.selector   = document.getElementById( selectElem );
     this.container  = YAHOO.util.Dom.getAncestorByTagName( selectElem, 'div' );
