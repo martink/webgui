@@ -496,7 +496,6 @@ sub view {
             $chart->setLabels( \@labels );
             
             $var{chart_html} = $chart->toHtml;
-            $var{hasImageGraph} = 1;
         } else {
             $self->session->errorHandler->error('The graph configuration hash of the Poll ('.$self->getUrl.') is corrupt.');
         }
