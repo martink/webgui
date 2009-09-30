@@ -138,7 +138,7 @@ sub generatePreview {
     my $blockWidth   = 40;
     my $blockHeight  = 40;
     my $blockSpacing = 10;
-    my $borderOffset = 20;
+    my $borderOffset = 10;
 
     my $width   = 2*$borderOffset + $self->getNumberOfColors * ( $blockWidth + $blockSpacing ) - $blockSpacing;
     my $height  = 2*$borderOffset + $blockHeight;
@@ -158,7 +158,7 @@ sub generatePreview {
             points      => "$x1,$y1 $x2,$y2",
             fill        => $color->getFillColor,
             stroke      => $color->getStrokeColor,
-            strokeWidth => 5,
+            strokeWidth => 4,
         );
 
         $x1 += $blockWidth + $blockSpacing;
@@ -203,6 +203,9 @@ sub www_deleteColor {
     my $color   = $class->_getColorFromFormPost( $session );
     $color->delete;
 
+    my $paletteId = $session->form->process( 'paletteId' );
+    WebGUI::Graphics::Palette->new( $session, $paletteId )->generatePreview;
+
     return $class->www_edit( $session );
 }
 
@@ -231,6 +234,9 @@ sub www_demoteColor {
 
     my $color   = $class->_getColorFromFormPost( $session );
     $color->demote;
+
+    my $paletteId = $session->form->process( 'paletteId' );
+    WebGUI::Graphics::Palette->new( $session, $paletteId )->generatePreview;
 
     return $class->www_edit( $session );
 }
@@ -281,6 +287,11 @@ sub www_edit {
 		$output .= '<tr><th></th><th>'.$i18n->get('fill color').'</th><th>'.$i18n->get('stroke color').'</th></tr>';
 
 		foreach my $color (@{$palette->getColorsInPalette}) {
+            my $x = ( -8 - $index * 50 + 50 ) . 'px';
+            my $y = '-8px';
+            my $previewUrl   = $palette->getPreviewUrl;
+            my $previewStyle = qq{ width : 45px; height : 45px; background : url($previewUrl) no-repeat $x $y; };
+            
 			$output .= '<tr>';
 			$output .= '<td>';
 			$output .= $icon->delete( "graphics=palette;method=deleteColor;paletteId=$paletteId;colorIndex=$index" );
@@ -288,8 +299,7 @@ sub www_edit {
 			$output .= $icon->moveUp( "graphics=palette;method=promoteColor;paletteId=$paletteId;colorIndex=$index" );
 			$output .= $icon->moveDown( "graphics=palette;method=demoteColor;paletteId=$paletteId;colorIndex=$index" );
 			$output .= '</td>';
-			$output .= '<td width="30" border="1" height="30" bgcolor="#'. $color->fillTriplet   .'"></td>';
-			$output .= '<td width="30" border="1" height="30" bgcolor="#'. $color->strokeTriplet .'"></td>';
+            $output .= qq{<td><div style="$previewStyle"></div></td>};
 			$output .= '</tr>';
 
             $index++;
@@ -402,6 +412,8 @@ sub www_editColorSave {
     
     $color->updateFromFormPost;
 
+    WebGUI::Graphics::Palette->new( $session, $paletteId )->generatePreview;
+
     return $class->www_edit( $session );
 };
 
@@ -415,6 +427,9 @@ sub www_promoteColor {
     
     my $color   = $class->_getColorFromFormPost( $session );
     $color->promote;
+
+    my $paletteId = $session->form->process( 'paletteId' );
+    WebGUI::Graphics::Palette->new( $session, $paletteId )->generatePreview;
 
     return $class->www_edit( $session );
 }
@@ -433,8 +448,7 @@ sub www_view {
 
     my $iterator = WebGUI::Graphics::Palette::Persist->getAllIterator( $session );
 	while ( my $palette = $iterator->() ) {
-        # TODO: Change this to only generate previews when something changes. Here now for testing purposes only.
-        my $previewUrl = $class->new( $session, $palette->getId )->generatePreview;
+        my $previewUrl = $class->new( $session, $palette->getId )->getPreviewUrl;
 		$output .= '<tr>';
 		$output .= '<td>';
 		$output .= $session->icon->delete('graphics=palette;method=delete;paletteId=' . $palette->getId );
