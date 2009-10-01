@@ -64,8 +64,8 @@ sub _applyConfiguration {
         $self->axis->addLabels( $labelset, $axis++ );
     }
 
-    my $font = WebGUI::Image::Font->new( $session, $self->get('fontId') );
-    my $fontFile = $font->getFile;
+    my $font = WebGUI::Graphics::Font->new( $session, $self->get('fontId') );
+    my $fontFile = $font->getFilePath;
     $self->axis->set({
         titleFont   => $fontFile,
         labelFont   => $fontFile,
@@ -139,9 +139,10 @@ sub definition {
             category        => 'axis',
         },
         titleFont => {
-            fieldType       => 'selectBox',
-            label           => 'Title font',
-            options         => $fonts,
+            fieldType       => 'HTMLSelectBox',
+            label           => 'Font',
+            options         => $fontOptions,
+            display         => $fontImages,
             category        => 'axis',
         },
        titleFontSize =>     {
